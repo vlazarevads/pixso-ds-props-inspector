@@ -1,0 +1,6 @@
+{
+  "name": "Design System Props Inspector",
+  "id": "Design System Props Inspector",
+  "main": "./dist/main.js",
+  "ui": "dist/inspector.html"
+}
