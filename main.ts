@@ -33,6 +33,9 @@ type InspectResult = {
 let lastInspectResult: InspectResult | null = null;
 let lastInspectedNode: any = null;
 
+let variantIndexCache = new Map<any, any[]>();
+let defaultPropsCache: Record<string, any> | null = null;
+
 function cleanPropName(name: string): string {
   return String(name).split("#")[0].trim();
 }
@@ -169,6 +172,10 @@ function inspectSelectedNode() {
     validation,
   };
 
+  defaultPropsCache = Object.fromEntries(
+  props.map((p) => [p.pixsoName, p.defaultValue])
+);
+
   pixso.ui.postMessage({
     type: "result",
     data: lastInspectResult,
@@ -196,6 +203,19 @@ function findNodeByName(root: any, name: string): any | null {
   }
 
   return null;
+}
+
+function getCachedVariants(sourceNode: any): any[] {
+  if (!sourceNode || sourceNode.type !== "COMPONENT_SET") return [];
+
+  if (variantIndexCache.has(sourceNode)) {
+    return variantIndexCache.get(sourceNode) || [];
+  }
+
+  const variants = Array.isArray(sourceNode.children) ? sourceNode.children : [];
+  variantIndexCache.set(sourceNode, variants);
+
+  return variants;
 }
 
 async function setTextInNamedContainer(
@@ -267,10 +287,9 @@ async function buildPropDemos(blockRoot: any, prop: NormalizedProp, sourceNode: 
   const values = getDemoValues(prop);
   if (!values.length) return;
 
-  // клонируем template
   const templateClone = typeof demoTemplate.clone === "function"
-    ? demoTemplate.clone()
-    : null;
+  ? demoTemplate.clone()
+  : null;
 
   if (!templateClone) return;
 
@@ -292,29 +311,28 @@ async function buildPropDemos(blockRoot: any, prop: NormalizedProp, sourceNode: 
 
     leftSection.appendChild(row);
   }
-  if (typeof templateClone.remove === "function") {
-  templateClone.remove();
-}
+
+    if (typeof templateClone.remove === "function") {
+    templateClone.remove();
+  }
 }
 
 function createDemoInstance(sourceNode: any, prop?: NormalizedProp, value?: string) {
   if (!sourceNode) return null;
 
   if (sourceNode.type === "COMPONENT_SET") {
-    const variants = sourceNode.children || [];
+    const variants = getCachedVariants(sourceNode);
 
-    const defaults = Object.fromEntries(
-      (lastInspectResult?.props || []).map((p) => [p.pixsoName, p.defaultValue])
-    );
+    const defaults = defaultPropsCache || {};
 
-    const target = { ...defaults };
+    const target = defaults ? { ...defaults } : {};
 
-    if (prop && value !== undefined) {
-      target[prop.pixsoName] =
-        value === "true" ? true :
-        value === "false" ? false :
-        value;
-    }
+  if (prop && value !== undefined) {
+    target[prop.pixsoName] =
+      value === "true" ? true :
+      value === "false" ? false :
+      value;
+  }
 
     const scoreVariant = (variant: any) => {
       const name = String(variant.name || "").toLowerCase();
@@ -349,22 +367,35 @@ function createDemoInstance(sourceNode: any, prop?: NormalizedProp, value?: stri
   return null;
 }
 
+function getCachedNode(cache: Map<string, any>, root: any, name: string) {
+  if (cache.has(name)) {
+    return cache.get(name);
+  }
+
+  const node = findNodeByName(root, name);
+  cache.set(name, node);
+
+  return node;
+}
+
 async function fillDemoRow(row: any, prop: NormalizedProp, value: string, sourceNode: any) {
+
+  const nodeCache = new Map<string, any>();
     
-  const demoDescriptor = findNodeByName(row, "demoDescriptor");
+  const demoDescriptor = getCachedNode(nodeCache, row, "demoDescriptor");
   if (demoDescriptor && "visible" in demoDescriptor) {
     demoDescriptor.visible = true;
   }
 
-  const textNode = demoDescriptor ? findNodeByName(demoDescriptor, "text") : null;
+  const textNode = demoDescriptor ? getCachedNode(nodeCache, demoDescriptor, "text") : null;
   if (textNode && textNode.type === "TEXT") {
     await loadTextNodeFontSafe(textNode);
     textNode.characters = `${prop.designName || prop.name} = ${value}`;
   }
 
   const demoPlaceholder =
-  findNodeByName(row, "demo-placeholder") ||
-  findNodeByName(row, "demoPlaceholder");
+  getCachedNode(nodeCache, row, "demo-placeholder") ||
+  getCachedNode(nodeCache, row, "demoPlaceholder");
 
   const instance = createDemoInstance(sourceNode, prop, value);
 
@@ -440,12 +471,7 @@ async function generateDocumentation() {
       docFrame.resize(1200, 100);
     }
 
-    if (typeof pixso.currentPage.appendChild === "function") {
       pixso.currentPage.appendChild(docFrame);
-    } else {
-      pixso.notify("appendChild не поддерживается у currentPage");
-      return;
-    }
 
     docFrame.x = (template.x || 0) + (template.width || 0) + 120;
     docFrame.y = template.y || 0;
@@ -465,15 +491,9 @@ async function generateDocumentation() {
       block.name = `prop / ${prop.designName || prop.name}`;
       block.visible = true;
 
-      const sourceNode = pixso.currentPage.selection[0];
       await fillPropBlock(block, prop, lastInspectedNode);
 
-      if (typeof docFrame.appendChild === "function") {
         docFrame.appendChild(block);
-      } else {
-        pixso.notify("appendChild не поддерживается у docFrame");
-        return;
-      }
 
       createdCount += 1;
     }
