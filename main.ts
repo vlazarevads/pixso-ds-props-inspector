@@ -7,7 +7,8 @@ type NormalizedProp = {
   name: string;
   designName: string;
   codeName: string;
-  type: string;
+  designType: string;
+  devType: string;
   description: string;
   category: string;
   values: string[] | null;
@@ -128,7 +129,8 @@ function normalizeProp(propName: string, propData: any): NormalizedProp {
     name: normalizedName,
     designName: dict?.designName || normalizedName,
     codeName: dict?.codeName || normalizedName,
-    type: dict?.type || propData?.type || "UNKNOWN",
+    designType: propData?.type || "UNKNOWN",
+    devType: dict?.type || "",
     description: dict?.description || "",
     category: dict?.category || "",
     values: propData?.variantOptions || null,
@@ -175,9 +177,10 @@ function inspectSelectedNode() {
     validation,
   };
 
-  defaultPropsCache = Object.fromEntries(
-  props.map((p) => [p.pixsoName, p.defaultValue])
-);
+  defaultPropsCache = props.reduce((acc, p) => {
+    acc[p.pixsoName] = p.defaultValue;
+    return acc;
+  }, {} as Record<string, any>);
 
   pixso.ui.postMessage({
     type: "result",
@@ -266,10 +269,17 @@ function getVariantResolver(sourceNode: any) {
   return resolver;
 }
 
+type StyledTextPayload = {
+  text: string;
+  boldRanges?: Array<{ start: number; end: number }>;
+};
+
+const loadedBoldFonts = new Set<string>();
+
 async function setTextInNamedContainer(
   root: any,
   containerName: string,
-  value: string
+  payload: string | StyledTextPayload
 ) {
   const container = findNodeByName(root, containerName);
   if (!container) return;
@@ -278,23 +288,127 @@ async function setTextInNamedContainer(
   if (!textNode) return;
 
   await loadTextNodeFontSafe(textNode);
-  textNode.characters = value || "";
+
+  const value =
+    typeof payload === "string"
+      ? { text: payload, boldRanges: [] }
+      : payload;
+
+  textNode.characters = value.text || "";
+
+  if (!value.boldRanges?.length) return;
+
+  const currentFont = textNode.fontName as FontName;
+  const boldFont: FontName = {
+    family: currentFont.family,
+    style: "Bold",
+  };
+
+  try {
+    const boldKey = JSON.stringify(boldFont);
+
+    if (!loadedBoldFonts.has(boldKey)) {
+      await pixso.loadFontAsync(boldFont);
+      loadedBoldFonts.add(boldKey);
+    }
+
+    for (const range of value.boldRanges) {
+      if (range.start < range.end) {
+        textNode.setRangeFontName(range.start, range.end, boldFont);
+      }
+    }
+  } catch (e) {
+    console.log("Bold font load error", e);
+  }
 }
 
-function buildDesignText(prop: NormalizedProp): string {
-  const valuesText =
-    prop.values && prop.values.length ? ` [${prop.values.join(", ")}]` : "";
-  const description = prop.description ? `: ${prop.description}` : "";
-  return `${prop.designName}${valuesText}${description}`;
+function isBooleanLikeProp(prop: NormalizedProp): boolean {
+  const type = String(prop.designType || "").toUpperCase();
+
+  if (type === "BOOLEAN") return true;
+
+  if (prop.values && prop.values.length === 2) {
+    const normalized = prop.values.map((v) => String(v).toLowerCase()).sort();
+    return normalized[0] === "false" && normalized[1] === "true";
+  }
+
+  return false;
 }
 
-function buildDevText(prop: NormalizedProp): string {
-  const typeText = prop.type ? `[${prop.type}]` : "";
-  const defaultText =
-    prop.defaultValue !== null && prop.defaultValue !== undefined
-      ? ` Default: ${String(prop.defaultValue)}`
-      : "";
-  return `${prop.codeName} ${typeText}${defaultText}`.trim();
+function getDesignTypeLabel(prop: NormalizedProp): string {
+  const type = String(prop.designType || "").toUpperCase();
+
+  if (isBooleanLikeProp(prop)) return "[boolean]";
+  if (type === "TEXT") return "[string]";
+  if (type === "INSTANCE_SWAP") return "[swap instance]";
+
+  if (prop.values && prop.values.length) {
+    return `[${prop.values.join(", ")}]`;
+  }
+
+  return "[string]";
+}
+
+function buildDesignText(prop: NormalizedProp): StyledTextPayload {
+  const propName = prop.designName || prop.name;
+  const typeLabel = getDesignTypeLabel(prop);
+  const descriptor = prop.description || "";
+
+  const head = `${propName} ${typeLabel}`;
+  const text = descriptor ? `${head}: ${descriptor}` : head;
+
+  return {
+    text,
+    boldRanges: [
+      { start: 0, end: propName.length },
+      { start: propName.length + 1, end: head.length },
+    ],
+  };
+}
+
+function buildDevText(prop: NormalizedProp): StyledTextPayload {
+  const propName = prop.codeName || prop.name;
+  const designType = String(prop.designType || "").toUpperCase();
+  const devType = String(prop.devType || "").trim();
+
+  let typeLabel = "";
+
+  // 1. Главный источник истины для dev — словарь
+  if (devType) {
+    const normalizedDevType = devType.toLowerCase();
+
+    if (normalizedDevType === "string") {
+      typeLabel = "[string]";
+    } else if (normalizedDevType === "boolean") {
+      typeLabel = "[boolean]";
+    } else if (normalizedDevType === "reactnode") {
+      typeLabel = "[ReactNode]";
+    } else {
+      typeLabel = devType;
+    }
+  }
+  // 2. Fallback только если в словаре типа нет
+  else if (isBooleanLikeProp(prop)) {
+    typeLabel = "";
+  } else if (prop.values && prop.values.length) {
+    typeLabel = `[${prop.values.join(", ")}]`;
+  } else if (designType === "INSTANCE_SWAP") {
+    typeLabel = "[ReactNode]";
+  } else if (designType === "TEXT") {
+    typeLabel = "[string]";
+  }
+
+  const head = typeLabel ? `${propName} ${typeLabel}` : propName;
+
+  return {
+    text: head,
+    boldRanges: typeLabel
+      ? [
+          { start: 0, end: propName.length },
+          { start: propName.length + 1, end: head.length },
+        ]
+      : [{ start: 0, end: propName.length }],
+  };
 }
 
 function buildInfoText(prop: NormalizedProp): string {
@@ -310,13 +424,10 @@ function buildInfoText(prop: NormalizedProp): string {
 }
 
 function getDemoValues(prop: NormalizedProp): string[] {
-
-  // boolean
-  if (prop.type === "boolean") {
+  if (isBooleanLikeProp(prop)) {
     return ["true", "false"];
   }
 
-  // enum / variants
   if (prop.values && prop.values.length) {
     return prop.values.map(String);
   }
@@ -512,7 +623,6 @@ async function fillPropBlock(block: any, prop: NormalizedProp, sourceNode: any) 
 
   await setTextInNamedContainer(block, "item/design", buildDesignText(prop));
   await setTextInNamedContainer(block, "item/dev", buildDevText(prop));
-  await setTextInNamedContainer(block, "item/info", buildInfoText(prop));
   await buildPropDemos(block, prop, sourceNode);
 }
 
@@ -549,7 +659,7 @@ async function generateDocumentation() {
         current: createdCount + 1,
         total: lastInspectResult.props.length
       });
-      
+
       if (typeof template.clone !== "function") {
         pixso.notify('У шаблона "doc content block" нет clone()');
         return;
@@ -562,9 +672,9 @@ async function generateDocumentation() {
       block.name = `prop / ${prop.designName || prop.name}`;
       block.visible = true;
 
-      await fillPropBlock(block, prop, lastInspectedNode);
+      docFrame.appendChild(block);
 
-        docFrame.appendChild(block);
+      await fillPropBlock(block, prop, lastInspectedNode);
 
       createdCount += 1;
     }

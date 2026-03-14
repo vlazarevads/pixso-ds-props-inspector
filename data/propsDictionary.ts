@@ -20,7 +20,7 @@ export const propsDictionary = {
   size: {
     designName: "size",
     codeName: "size",
-    type: "enum",
+    type: "[enum]",
     description: "Размер компонента",
     category: "component",
   },
@@ -196,7 +196,7 @@ export const propsDictionary = {
   IconBefore: {
     designName: "iconBefore",
     codeName: "iconBefore",
-    type: "boolean",
+    type: "ReactNode",
     description: "Отображение иконки перед контентом",
     category: "visibility",
   },
@@ -212,7 +212,7 @@ export const propsDictionary = {
   IconAfter: {
     designName: "iconAfter",
     codeName: "iconAfter",
-    type: "boolean",
+    type: "ReactNode",
     description: "Отображение иконки после контента",
     category: "visibility",
   },
