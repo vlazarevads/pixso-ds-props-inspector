@@ -35,6 +35,9 @@ let lastInspectedNode: any = null;
 
 let variantIndexCache = new Map<any, any[]>();
 let defaultPropsCache: Record<string, any> | null = null;
+let variantResolverCache = new Map<any, Map<string, any>>();
+
+const loadedFonts = new Set<string>();
 
 function cleanPropName(name: string): string {
   return String(name).split("#")[0].trim();
@@ -184,7 +187,14 @@ function inspectSelectedNode() {
 
 async function loadTextNodeFontSafe(node: TextNode) {
   try {
+    const fontKey = JSON.stringify(node.fontName);
+
+    if (loadedFonts.has(fontKey)) {
+      return;
+    }
+
     await pixso.loadFontAsync(node.fontName as FontName);
+    loadedFonts.add(fontKey);
   } catch (e) {
     console.log("Font load error", e);
   }
@@ -216,6 +226,44 @@ function getCachedVariants(sourceNode: any): any[] {
   variantIndexCache.set(sourceNode, variants);
 
   return variants;
+}
+
+function buildVariantResolverKey(props: Record<string, any>) {
+  return Object.entries(props)
+    .filter(([, value]) => value !== null && value !== undefined)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([key, value]) => `${key}=${String(value).toLowerCase()}`)
+    .join("|");
+}
+
+function getVariantResolver(sourceNode: any) {
+  if (!sourceNode || sourceNode.type !== "COMPONENT_SET") return null;
+
+  if (variantResolverCache.has(sourceNode)) {
+    return variantResolverCache.get(sourceNode);
+  }
+
+  const resolver = new Map<string, any>();
+  const variants = getCachedVariants(sourceNode);
+
+  for (const variant of variants) {
+    const name = String(variant.name || "");
+    const parts = name.split(",");
+
+    const props: Record<string, any> = {};
+
+    for (const part of parts) {
+      const [key, value] = part.split("=");
+      if (!key || value === undefined) continue;
+      props[key.trim()] = value.trim().toLowerCase();
+    }
+
+    const key = buildVariantResolverKey(props);
+    resolver.set(key, variant);
+  }
+
+  variantResolverCache.set(sourceNode, resolver);
+  return resolver;
 }
 
 async function setTextInNamedContainer(
@@ -322,6 +370,7 @@ function createDemoInstance(sourceNode: any, prop?: NormalizedProp, value?: stri
 
   if (sourceNode.type === "COMPONENT_SET") {
     const variants = getCachedVariants(sourceNode);
+    const resolver = getVariantResolver(sourceNode);
 
     const defaults = defaultPropsCache || {};
 
@@ -332,6 +381,13 @@ function createDemoInstance(sourceNode: any, prop?: NormalizedProp, value?: stri
       value === "true" ? true :
       value === "false" ? false :
       value;
+  }
+
+    const resolverKey = buildVariantResolverKey(target);
+  const resolvedVariant = resolver?.get(resolverKey);
+
+  if (resolvedVariant && typeof resolvedVariant.createInstance === "function") {
+    return resolvedVariant.createInstance();
   }
 
     const scoreVariant = (variant: any) => {
@@ -376,6 +432,21 @@ function getCachedNode(cache: Map<string, any>, root: any, name: string) {
   cache.set(name, node);
 
   return node;
+}
+
+function getPropBlockNodes(block: any) {
+  const cache = new Map<string, any>();
+
+  return {
+    title:
+      getCachedNode(cache, block, "title") ||
+      getCachedNode(cache, block, "Header") ||
+      getCachedNode(cache, block, "text"),
+
+    design: getCachedNode(cache, block, "item/design"),
+    dev: getCachedNode(cache, block, "item/dev"),
+    info: getCachedNode(cache, block, "item/info"),
+  };
 }
 
 async function fillDemoRow(row: any, prop: NormalizedProp, value: string, sourceNode: any) {
@@ -431,10 +502,8 @@ async function fillDemoRow(row: any, prop: NormalizedProp, value: string, source
 }
 
 async function fillPropBlock(block: any, prop: NormalizedProp, sourceNode: any) {
-  const titleText =
-    findNodeByName(block, "title") ||
-    findNodeByName(block, "Header") ||
-    findNodeByName(block, "text");
+  const nodes = getPropBlockNodes(block);
+  const titleText = nodes.title;
 
   if (titleText && titleText.type === "TEXT") {
     await loadTextNodeFontSafe(titleText);
@@ -448,6 +517,7 @@ async function fillPropBlock(block: any, prop: NormalizedProp, sourceNode: any) 
 }
 
 async function generateDocumentation() {
+  const startedAt = Date.now();
   try {
     if (!lastInspectResult) {
       pixso.notify("Сначала нажми Inspect component");
@@ -471,14 +541,15 @@ async function generateDocumentation() {
       docFrame.resize(1200, 100);
     }
 
-      pixso.currentPage.appendChild(docFrame);
-
-    docFrame.x = (template.x || 0) + (template.width || 0) + 120;
-    docFrame.y = template.y || 0;
-
     let createdCount = 0;
 
     for (const prop of lastInspectResult.props) {
+      pixso.ui.postMessage({
+        type: "progress",
+        current: createdCount + 1,
+        total: lastInspectResult.props.length
+      });
+      
       if (typeof template.clone !== "function") {
         pixso.notify('У шаблона "doc content block" нет clone()');
         return;
@@ -498,17 +569,28 @@ async function generateDocumentation() {
       createdCount += 1;
     }
 
-    if ("selection" in pixso.currentPage) {
+      pixso.currentPage.appendChild(docFrame);
+
+      docFrame.x = (template.x || 0) + (template.width || 0) + 120;
+      docFrame.y = template.y || 0;
+
+        if ("selection" in pixso.currentPage) {
       pixso.currentPage.selection = [docFrame];
     }
 
+    const duration = ((Date.now() - startedAt) / 1000).toFixed(2);
+
     pixso.notify(
-      `Документация создана: ${lastInspectResult.component}. Блоков: ${createdCount}`
-    );
-  } catch (error) {
-    console.error(error);
-    pixso.notify(`Ошибка генерации: ${String(error)}`);
-  }
+          `Документация создана: ${lastInspectResult.component}. Блоков: ${createdCount}. Время: ${duration}s`
+        );
+      } catch (error) {
+        console.error(error);
+        pixso.notify(`Ошибка генерации: ${String(error)}`);
+      } finally {
+        pixso.ui.postMessage({
+          type: "generation-finished"
+        });
+      }
 }
 
 pixso.ui.onmessage = async (msg) => {
