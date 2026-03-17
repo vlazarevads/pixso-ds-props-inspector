@@ -129,8 +129,16 @@ export const propsDictionary = {
     category: "content",
   },
 
-  children: {
+  Children: {
     designName: "children",
+    codeName: "children",
+    type: "ReactNode",
+    description: "Отображение вложенного контента",
+    category: "visibility",
+  },
+
+  children: {
+    designName: "🔄 children",
     codeName: "children",
     type: "ReactNode",
     description: "Вложенный элемент компонента",
@@ -225,12 +233,28 @@ export const propsDictionary = {
     category: "slot",
   },
 
+  ElementBefore: {
+    designName: "elementBefore",
+    codeName: "elementBefore",
+    type: "ReactNode",
+    description: "Отображение элемента перед основным контентом",
+    category: "visibility",
+  },
+
   elementBefore: {
     designName: "🔄 elementBefore",
     codeName: "elementBefore",
     type: "ReactNode",
     description: "Одиночный элемент перед основным контентом",
     category: "slot",
+  },
+
+  ElementAfter: {
+    designName: "elementAfter",
+    codeName: "elementAfter",
+    type: "ReactNode",
+    description: "Отображение элемента после основного контента",
+    category: "visibility",
   },
 
   elementAfter: {
@@ -241,12 +265,28 @@ export const propsDictionary = {
     category: "slot",
   },
 
+  ElementTop: {
+    designName: "elementTop",
+    codeName: "elementTop",
+    type: "ReactNode",
+    description: "Отображение элемента сверху",
+    category: "visibility",
+  },
+
   elementTop: {
     designName: "🔄 elementTop",
     codeName: "elementTop",
     type: "ReactNode",
     description: "Одиночный элемент сверху",
     category: "slot",
+  },
+
+  ElementBottom: {
+    designName: "elementBottom",
+    codeName: "elementBottom",
+    type: "ReactNode",
+    description: "Отображение элемента снизу",
+    category: "visibility",
   },
 
   elementBottom: {
@@ -257,6 +297,14 @@ export const propsDictionary = {
     category: "slot",
   },
 
+  ElementRight: {
+    designName: "elementRight",
+    codeName: "elementRight",
+    type: "ReactNode",
+    description: "Отображение элемента справа",
+    category: "visibility",
+  },
+
   elementRight: {
     designName: "🔄 elementRight",
     codeName: "elementRight",
@@ -265,12 +313,28 @@ export const propsDictionary = {
     category: "slot",
   },
 
+  ElementLeft: {
+    designName: "elementLeft",
+    codeName: "elementLeft",
+    type: "ReactNode",
+    description: "Отображение элемента слева",
+    category: "visibility",
+  },
+
   elementLeft: {
     designName: "🔄 elementLeft",
     codeName: "elementLeft",
     type: "ReactNode",
     description: "Одиночный элемент слева",
     category: "slot",
+  },
+
+  ElementCentered: {
+    designName: "elementCentered",
+    codeName: "elementCentered",
+    type: "ReactNode",
+    description: "Отображение элемента по центру",
+    category: "visibility",
   },
 
   elementCentered: {

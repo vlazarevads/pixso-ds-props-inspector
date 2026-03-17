@@ -53,25 +53,86 @@ function normalizePixsoName(name: string): string {
   return cleaned;
 }
 
-function findDictionaryEntry(pixsoName: string, normalizedName: string) {
+function matchesDictionaryByPixsoType(dict: any, propData: any): boolean {
+  const designType = String(propData?.type || "").toUpperCase();
+  const category = String(dict?.category || "").toLowerCase();
+  const devType = String(dict?.type || "").toLowerCase();
+
+  // Все slot-похожие пропы в Pixso
+  if (
+    designType === "INSTANCE_SWAP" ||
+    designType === "TEXT" ||
+    designType === "VARIANT"
+  ) {
+    return category === "slot" || devType === "reactnode";
+  }
+
+  // Все visibility-похожие пропы в Pixso
+  if (designType === "BOOLEAN") {
+    return category === "visibility" || devType === "boolean";
+  }
+
+  return true;
+}
+
+function getAltDictionaryKey(name: string): string | null {
+  if (!name) return null;
+
+  const first = name.charAt(0);
+  const upperFirst = first.toUpperCase() + name.slice(1);
+
+  if (upperFirst !== name) return upperFirst;
+
+  const lowerFirst = first.toLowerCase() + name.slice(1);
+  if (lowerFirst !== name) return lowerFirst;
+
+  return null;
+}
+
+function findDictionaryEntry(pixsoName: string, normalizedName: string, propData: any) {
   const dictionaryKeys = Object.keys(propsDictionary);
 
+  const altPixsoKey = getAltDictionaryKey(pixsoName);
+  const altNormalizedKey = getAltDictionaryKey(normalizedName);
+
+  const directCandidates = [
+    propsDictionary[pixsoName as keyof typeof propsDictionary],
+    propsDictionary[normalizedName as keyof typeof propsDictionary],
+    altPixsoKey
+      ? propsDictionary[altPixsoKey as keyof typeof propsDictionary]
+      : null,
+    altNormalizedKey
+      ? propsDictionary[altNormalizedKey as keyof typeof propsDictionary]
+      : null,
+  ].filter(Boolean);
+
   const direct =
-    propsDictionary[pixsoName as keyof typeof propsDictionary] ||
-    propsDictionary[normalizedName as keyof typeof propsDictionary] ||
-    null;
+    directCandidates.find((item) =>
+      matchesDictionaryByPixsoType(item, propData)
+    ) || directCandidates[0] || null;
 
   if (direct) {
-    const dictionaryIndex = dictionaryKeys.indexOf(
-      pixsoName in propsDictionary ? pixsoName : normalizedName
-    );  
+    const directKeyCandidates = [
+      pixsoName,
+      normalizedName,
+      altPixsoKey,
+      altNormalizedKey,
+    ].filter(Boolean) as string[];
+
+    const directKey =
+      directKeyCandidates.find((key) => {
+        const item = propsDictionary[key as keyof typeof propsDictionary];
+        return item === direct;
+      }) || directKeyCandidates[0];
+
+    const dictionaryIndex = dictionaryKeys.indexOf(directKey);
 
     if (pixsoName === direct.designName) {
       return {
         dict: direct,
         status: "OK",
         suggestedName: direct.designName,
-        dictionaryIndex
+        dictionaryIndex,
       };
     }
 
@@ -80,7 +141,7 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
         dict: direct,
         status: "WRONG_CASE",
         suggestedName: direct.designName,
-        dictionaryIndex
+        dictionaryIndex,
       };
     }
 
@@ -88,13 +149,13 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
       dict: direct,
       status: "REVIEW",
       suggestedName: direct.designName,
-      dictionaryIndex
+      dictionaryIndex,
     };
   }
 
   const lowerPixso = pixsoName.toLowerCase();
 
-  const matchedKey = Object.keys(propsDictionary).find((key) => {
+  const matchedCandidates = Object.keys(propsDictionary).filter((key) => {
     const item = propsDictionary[key as keyof typeof propsDictionary];
     return (
       key.toLowerCase() === lowerPixso ||
@@ -102,6 +163,14 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
       String(item.codeName).toLowerCase() === lowerPixso
     );
   });
+
+  const matchedKey =
+    matchedCandidates.find((key) =>
+      matchesDictionaryByPixsoType(
+        propsDictionary[key as keyof typeof propsDictionary],
+        propData
+      )
+    ) || matchedCandidates[0];
 
   if (matchedKey) {
     const dict = propsDictionary[matchedKey as keyof typeof propsDictionary];
@@ -143,7 +212,7 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
 function normalizeProp(propName: string, propData: any): NormalizedProp {
   const pixsoName = cleanPropName(propName);
   const normalizedName = normalizePixsoName(pixsoName);
-  const match = findDictionaryEntry(pixsoName, normalizedName);
+  const match = findDictionaryEntry(pixsoName, normalizedName, propData);
   const dict = match.dict;
 
   return {
@@ -422,7 +491,7 @@ function buildDevText(prop: NormalizedProp): StyledTextPayload {
     } else if (normalizedDevType === "reactnode") {
       typeLabel = "[ReactNode]";
     } else {
-      typeLabel = devType;
+      typeLabel = `[${devType}]`;
     }
   }
   // 2. Fallback только если в словаре типа нет
