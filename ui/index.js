@@ -2,10 +2,6 @@ const inspectBtn = document.getElementById("inspectBtn");
 const copyJsonBtn = document.getElementById("copyJsonBtn");
 const copyTableBtn = document.getElementById("copyTableBtn");
 const generateDocBtn = document.getElementById("generateDocBtn");
-const loadingGif = document.getElementById("loadingGif");
-if (loadingGif) {
-  loadingGif.src = "";
-}
 
 setInterval(() => {
   const dots = document.getElementById("dots");
@@ -191,21 +187,21 @@ function buildTable(props) {
         prop.status === "OK"
           ? "status-ok"
           : prop.status === "WRONG_CASE"
-          ? "status-warn"
+          ? "status-wrong_case"
           : prop.status === "REVIEW"
           ? "status-review"
           : "status-unknown";
 
-      return `
-        <tr>
-          <td>${escapeHtml(prop.pixsoName ?? "")}</td>
-          <td>${escapeHtml(prop.designName ?? "")}</td>
-          <td>${escapeHtml(prop.codeName ?? "")}</td>
-          <td>${escapeHtml(formatPropValues(prop.values))}</td>
-          <td class="${statusClass}">${escapeHtml(prop.status ?? "")}</td>
-          <td>${escapeHtml(prop.suggestedName ?? "")}</td>
-        </tr>
-      `;
+        return `
+          <tr class="${statusClass}">
+            <td>${escapeHtml(prop.pixsoName ?? "")}</td>
+            <td>${escapeHtml(prop.designName ?? "")}</td>
+            <td>${escapeHtml(prop.codeName ?? "")}</td>
+            <td>${escapeHtml(formatPropValues(prop.values))}</td>
+            <td>${escapeHtml(prop.status ?? "")}</td>
+            <td>${escapeHtml(prop.suggestedName ?? "")}</td>
+          </tr>
+        `;
     })
     .join("");
 

@@ -612,7 +612,7 @@ async function buildPropDemos(blockRoot: any, prop: NormalizedProp, sourceNode: 
 
   await fillDemoRow(row, prop, value, sourceNode);
 
-    leftSection.appendChild(row);
+    leftSection.appendChild(row, false);
   }
 
     if (typeof templateClone.remove === "function") {
@@ -760,7 +760,7 @@ async function fillDemoRow(row: any, prop: NormalizedProp, value: string, source
     }
 
     if (typeof parent.appendChild === "function") {
-      parent.appendChild(instance);
+      parent.appendChild(instance, false);
     }
   }
 }
@@ -779,6 +779,183 @@ async function fillPropBlock(block: any, prop: NormalizedProp, sourceNode: any) 
   await buildPropDemos(block, prop, sourceNode);
 }
 
+async function fillPurposeBlock(block: any, sourceNode: any) {
+  const headerTitle =
+    findNodeByName(block, "title") ||
+    findNodeByName(block, "Header") ||
+    findNodeByName(block, "text");
+
+  if (headerTitle && headerTitle.type === "TEXT") {
+    await loadTextNodeFontSafe(headerTitle);
+    headerTitle.characters = "purpose";
+  }
+
+  const rightSection = findNodeByName(block, "rightSection");
+  if (rightSection && typeof rightSection.remove === "function") {
+    rightSection.remove();
+  }
+
+  const leftSection = findNodeByName(block, "leftSection");
+  if (leftSection) {
+    if ("layoutGrow" in leftSection) {
+      leftSection.layoutGrow = 1;
+    }
+    if ("layoutAlign" in leftSection) {
+      leftSection.layoutAlign = "STRETCH";
+    }
+  }
+
+  const demoDescriptor =
+    findNodeByName(block, "demoDescriptor") ||
+    findNodeByName(block, "demoDescription") ||
+    findNodeByName(block, "description");
+
+  if (demoDescriptor && "visible" in demoDescriptor) {
+    demoDescriptor.visible = false;
+  }
+
+  const descriptionText = pixso.createText();
+  descriptionText.name = "descriptionText";
+  await loadTextNodeFontSafe(descriptionText);
+  descriptionText.characters = "Описание компонента";
+
+  const header = findNodeByName(block, "header");
+  const docBlock =
+    findNodeByName(block, "doc/block") ||
+    findNodeByName(block, "docBlock");
+
+  if (header && header.parent && docBlock) {
+    const parent = header.parent;
+    parent.insertChild(parent.children.indexOf(docBlock), descriptionText);
+  }
+
+  const demoPlaceholder =
+    findNodeByName(block, "demoPlaceholder") ||
+    findNodeByName(block, "demo-placeholder");
+
+  const instance = createDemoInstance(sourceNode);
+
+  if (demoPlaceholder && demoPlaceholder.parent && instance) {
+    const parent = demoPlaceholder.parent;
+
+    if (typeof demoPlaceholder.remove === "function") {
+      demoPlaceholder.remove();
+    }
+
+    if (typeof parent.appendChild === "function") {
+      parent.appendChild(instance, false);
+    }
+  }
+}
+
+async function createDocHeader(): Promise<any | null> {
+  const template = findNodeByName(pixso.currentPage, "doc header") as any;
+
+  if (!template || typeof template.clone !== "function") {
+    return null;
+  }
+
+  const instance = template.clone();
+  const header =
+    typeof instance.detachInstance === "function"
+      ? instance.detachInstance()
+      : instance;
+
+  header.name = "doc header";
+
+  const pageTitle =
+    findNodeByName(header, "pageTitle") ||
+    findNodeByName(header, "title") ||
+    findNodeByName(header, "text");
+
+  if (pageTitle && pageTitle.type === "TEXT") {
+    await loadTextNodeFontSafe(pageTitle);
+    pageTitle.characters = "Общее описание компонента";
+  }
+
+  if ("layoutPositioning" in header) {
+    header.layoutPositioning = "AUTO";
+  }
+  if ("layoutAlign" in header) {
+    header.layoutAlign = "STRETCH";
+  }
+  if ("layoutGrow" in header) {
+    header.layoutGrow = 0;
+  }
+
+  return header;
+}
+
+async function createDocNavigation(props: NormalizedProp[]): Promise<any | null> {
+  const template = findNodeByName(pixso.currentPage, "doc navigation") as any;
+
+  if (!template || typeof template.clone !== "function") {
+    return null;
+  }
+
+  const instance = template.clone();
+  const navigation =
+    typeof instance.detachInstance === "function"
+      ? instance.detachInstance()
+      : instance;
+
+  navigation.name = "doc navigation";
+
+  const navList = findNodeByName(navigation, "navList");
+  const navItemTemplate = navList ? findNodeByName(navList, "navItem") : null;
+
+  if (!navList || !navItemTemplate || typeof navItemTemplate.clone !== "function") {
+    return navigation;
+  }
+
+  // СНАЧАЛА делаем безопасную копию шаблона
+  const navItemMaster = navItemTemplate.clone();
+
+  const navItems = ["purpose", ...props.map((p) => p.designName || p.name)];
+
+  // ПОТОМ очищаем список
+  const oldChildren = [...navList.children];
+  for (const child of oldChildren) {
+    child.remove();
+  }
+
+  for (const itemName of navItems) {
+    const navItem = navItemMaster.clone();
+    navItem.name = `navItem / ${itemName}`;
+
+    const textNode =
+      findNodeByName(navItem, "text") ||
+      findNodeByName(navItem, "title");
+
+    if (textNode && textNode.type === "TEXT") {
+      await loadTextNodeFontSafe(textNode);
+      textNode.characters = itemName;
+    }
+
+    navList.appendChild(navItem, false);
+  }
+
+    if (typeof navItemMaster.remove === "function") {
+    navItemMaster.remove();
+  }
+
+  if ("layoutPositioning" in navigation) {
+    navigation.layoutPositioning = "AUTO";
+  }
+  if ("layoutAlign" in navigation) {
+    navigation.layoutAlign = "STRETCH";
+  }
+  if ("layoutGrow" in navigation) {
+    navigation.layoutGrow = 0;
+  }
+
+  if (typeof navigation.resize === "function") {
+    navigation.resize(1200, navigation.height);
+  }
+
+  return navigation;
+}
+
 async function generateDocumentation() {
   const startedAt = Date.now();
   try {
@@ -794,17 +971,104 @@ async function generateDocumentation() {
       return;
     }
 
+    const pageFrame = pixso.createFrame();
+    pageFrame.name = `Doc / ${lastInspectResult.component || "Component"}`;
+    pageFrame.layoutMode = "VERTICAL";
+    pageFrame.itemSpacing = 0;
+    pageFrame.cornerRadius = 24;
+    pageFrame.fills = [
+      {
+        type: "SOLID",
+        color: { r: 1, g: 1, b: 1 },
+      },
+    ];
+    pageFrame.paddingLeft = 0;
+    pageFrame.paddingRight = 0;
+    pageFrame.paddingTop = 0;
+    pageFrame.paddingBottom = 0;
+
+    if ("primaryAxisSizingMode" in pageFrame) {
+      pageFrame.primaryAxisSizingMode = "AUTO";
+    }
+    if ("counterAxisSizingMode" in pageFrame) {
+      pageFrame.counterAxisSizingMode = "FIXED";
+    }
+
+    if (typeof pageFrame.resize === "function") {
+      pageFrame.resize(1280, 100);
+    }
+
+    const bodyFrame = pixso.createFrame();
+    bodyFrame.name = "bodyFrame";
+    bodyFrame.layoutMode = "VERTICAL";
+    bodyFrame.itemSpacing = 40;
+    bodyFrame.fills = [];
+    bodyFrame.paddingLeft = 40;
+    bodyFrame.paddingRight = 40;
+    bodyFrame.paddingTop = 40;
+    bodyFrame.paddingBottom = 40;
+
+    if ("layoutAlign" in bodyFrame) {
+      bodyFrame.layoutAlign = "STRETCH";
+    }
+    if ("layoutPositioning" in bodyFrame) {
+      bodyFrame.layoutPositioning = "AUTO";
+    }
+
     const docFrame = pixso.createFrame();
-    docFrame.name = `Doc / ${lastInspectResult.component || "Component"}`;
+    docFrame.name = "doc frame";
     docFrame.layoutMode = "VERTICAL";
-    docFrame.itemSpacing = 24;
+    docFrame.itemSpacing = 72;
     docFrame.fills = [];
+    docFrame.layoutGrow = 1;
+    docFrame.paddingLeft = 0;
+    docFrame.paddingRight = 0;
+    docFrame.paddingTop = 0;
+    docFrame.paddingBottom = 0;
+
+    if ("layoutPositioning" in docFrame) {
+      docFrame.layoutPositioning = "AUTO";
+    }
+    if ("layoutAlign" in docFrame) {
+      docFrame.layoutAlign = "STRETCH";
+    }
 
     if (typeof docFrame.resize === "function") {
       docFrame.resize(1200, 100);
     }
 
+    const header = await createDocHeader();
+    const navigation = await createDocNavigation(lastInspectResult.props);
+
+    if (header) {
+      pageFrame.appendChild(header, false);
+    }
+
+    if (navigation) {
+      bodyFrame.appendChild(navigation, false);
+    }
+
+    bodyFrame.appendChild(docFrame, false);
+    pageFrame.appendChild(bodyFrame, false);
+
     let createdCount = 0;
+
+    if (typeof template.clone !== "function") {
+      pixso.notify('У шаблона "doc content block" нет clone()');
+      return;
+    }
+
+    const purposeInstance = template.clone();
+    const purposeBlock =
+      typeof purposeInstance.detachInstance === "function"
+        ? purposeInstance.detachInstance()
+        : purposeInstance;
+
+    purposeBlock.name = "section / purpose";
+    purposeBlock.visible = true;
+
+    docFrame.appendChild(purposeBlock, false);
+    await fillPurposeBlock(purposeBlock, lastInspectedNode);
 
     for (const prop of lastInspectResult.props) {
       pixso.ui.postMessage({
@@ -825,20 +1089,20 @@ async function generateDocumentation() {
       block.name = `prop / ${prop.designName || prop.name}`;
       block.visible = true;
 
-      docFrame.appendChild(block);
+      docFrame.appendChild(block, false);
 
       await fillPropBlock(block, prop, lastInspectedNode);
 
       createdCount += 1;
     }
 
-      pixso.currentPage.appendChild(docFrame);
+    pixso.currentPage.appendChild(pageFrame, false);
 
-      docFrame.x = (template.x || 0) + (template.width || 0) + 120;
-      docFrame.y = template.y || 0;
+    pageFrame.x = (template.x || 0) + (template.width || 0) + 120;
+    pageFrame.y = template.y || 0;
 
-        if ("selection" in pixso.currentPage) {
-      pixso.currentPage.selection = [docFrame];
+    if ("selection" in pixso.currentPage) {
+      pixso.currentPage.selection = [pageFrame];
     }
 
     const duration = ((Date.now() - startedAt) / 1000).toFixed(2);

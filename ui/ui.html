@@ -93,24 +93,16 @@
         margin-top: 8px;
       }
 
-      .status-ok td:last-child,
-      .status-ok td:nth-last-child(2) {
-        background: #eaf7ea;
-      }
-
-      .status-review td:last-child,
-      .status-review td:nth-last-child(2) {
+      .status-review td {
         background: #fff6dd;
       }
 
-      .status-wrong_case td:last-child,
-      .status-wrong_case td:nth-last-child(2) {
-        background: #ffe9cc;
+      .status-unknown td {
+        background: #f2f2f2;
       }
 
-      .status-unknown td:last-child,
-      .status-unknown td:nth-last-child(2) {
-        background: #fdeaea;
+      .status-wrong_case td {
+        background: #e7f1ff;
       }
     </style>
   </head>
@@ -139,11 +131,12 @@
       text-align:center;
       padding:40px 20px;
     ">
-      <img 
-         
+      <img
+        id="loadingGif"
+        src ="https://c.tenor.com/aW1paWTKpZMAAAAd/tenor.gif"; 
         style="
           width:90%;
-          max-width:520px;
+          max-width:800px;
         "
       />
 
