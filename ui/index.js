@@ -30,13 +30,40 @@ inspectBtn.onclick = () => {
   );
 };
 
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch (e) {
+    console.warn("navigator.clipboard failed, fallback used", e);
+  }
+
+  try {
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.pointerEvents = "none";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+
+    const success = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    return success;
+  } catch (e) {
+    console.error("Fallback copy failed", e);
+    return false;
+  }
+}
+
 copyJsonBtn.onclick = async () => {
   if (!lastResult) return;
 
-  try {
-    await navigator.clipboard.writeText(JSON.stringify(lastResult, null, 2));
-  } catch (e) {
-    console.error(e);
+  const success = await copyText(JSON.stringify(lastResult, null, 2));
+  if (!success) {
+    alert("Не удалось скопировать JSON");
   }
 };
 
@@ -67,10 +94,9 @@ copyTableBtn.onclick = async () => {
     ...rows.map((row) => `| ${row.join(" | ")} |`),
   ].join("\n");
 
-  try {
-    await navigator.clipboard.writeText(markdown);
-  } catch (e) {
-    console.error(e);
+  const success = await copyText(markdown);
+  if (!success) {
+    alert("Не удалось скопировать таблицу");
   }
 };
 

@@ -3,6 +3,8 @@ import { propsDictionary } from "./data/propsDictionary";
 pixso.showUI(__html__, { width: 720, height: 560 });
 
 type NormalizedProp = {
+  rawVariantOptions: string[] | null;
+  rawPixsoName: string;
   pixsoName: string;
   name: string;
   designName: string;
@@ -89,133 +91,154 @@ function getAltDictionaryKey(name: string): string | null {
   return null;
 }
 
+function getDictionaryVariants() {
+  return Object.entries(propsDictionary).flatMap(([key, value]) => {
+    const item = value as any;
+
+    if (item?.variants) {
+      return Object.entries(item.variants).map(([variantKey, variantValue]) => ({
+        dictKey: key,
+        variantKey,
+        item: variantValue,
+      }));
+    }
+
+    return [
+      {
+        dictKey: key,
+        variantKey: null,
+        item,
+      },
+    ];
+  });
+}
+
 function findDictionaryEntry(pixsoName: string, normalizedName: string, propData: any) {
+  const lowerPixso = pixsoName.toLowerCase();
+  const lowerNormalized = normalizedName.toLowerCase();
+  const allEntries = getDictionaryVariants();
   const dictionaryKeys = Object.keys(propsDictionary);
 
-  const altPixsoKey = getAltDictionaryKey(pixsoName);
-  const altNormalizedKey = getAltDictionaryKey(normalizedName);
-
-  const directCandidates = [
-    propsDictionary[pixsoName as keyof typeof propsDictionary],
-    propsDictionary[normalizedName as keyof typeof propsDictionary],
-    altPixsoKey
-      ? propsDictionary[altPixsoKey as keyof typeof propsDictionary]
-      : null,
-    altNormalizedKey
-      ? propsDictionary[altNormalizedKey as keyof typeof propsDictionary]
-      : null,
-  ].filter(Boolean);
-
-  const direct =
-    directCandidates.find((item) =>
-      matchesDictionaryByPixsoType(item, propData)
-    ) || directCandidates[0] || null;
-
-  if (direct) {
-    const directKeyCandidates = [
-      pixsoName,
-      normalizedName,
-      altPixsoKey,
-      altNormalizedKey,
-    ].filter(Boolean) as string[];
-
-    const directKey =
-      directKeyCandidates.find((key) => {
-        const item = propsDictionary[key as keyof typeof propsDictionary];
-        return item === direct;
-      }) || directKeyCandidates[0];
-
-    const dictionaryIndex = dictionaryKeys.indexOf(directKey);
-
-    if (pixsoName === direct.designName) {
-      return {
-        dict: direct,
-        status: "OK",
-        suggestedName: direct.designName,
-        dictionaryIndex,
-      };
-    }
-
-    if (pixsoName.toLowerCase() === String(direct.designName).toLowerCase()) {
-      return {
-        dict: direct,
-        status: "WRONG_CASE",
-        suggestedName: direct.designName,
-        dictionaryIndex,
-      };
-    }
-
-    return {
-      dict: direct,
-      status: "REVIEW",
-      suggestedName: direct.designName,
-      dictionaryIndex,
-    };
-  }
-
-  const lowerPixso = pixsoName.toLowerCase();
-
-  const matchedCandidates = Object.keys(propsDictionary).filter((key) => {
-    const item = propsDictionary[key as keyof typeof propsDictionary];
+  const matchedCandidates = allEntries.filter(({ dictKey, item }) => {
     return (
-      key.toLowerCase() === lowerPixso ||
+      String(dictKey).toLowerCase() === lowerPixso ||
+      String(dictKey).toLowerCase() === lowerNormalized ||
       String(item.designName).toLowerCase() === lowerPixso ||
-      String(item.codeName).toLowerCase() === lowerPixso
+      String(item.designName).toLowerCase() === lowerNormalized ||
+      String(item.codeName).toLowerCase() === lowerPixso ||
+      String(item.codeName).toLowerCase() === lowerNormalized
     );
   });
 
-  const matchedKey =
-    matchedCandidates.find((key) =>
-      matchesDictionaryByPixsoType(
-        propsDictionary[key as keyof typeof propsDictionary],
-        propData
-      )
+  const matched =
+    matchedCandidates.find(({ item }) =>
+      matchesDictionaryByPixsoType(item, propData)
     ) || matchedCandidates[0];
 
-  if (matchedKey) {
-    const dict = propsDictionary[matchedKey as keyof typeof propsDictionary];
-    const dictionaryIndex = dictionaryKeys.indexOf(matchedKey);
+  if (!matched) {
+    return null;
+  }
 
-    if (pixsoName === dict.designName) {
-      return { 
-        dict, status: "OK",
-        suggestedName: dict.designName,
-        dictionaryIndex,
-      };
-    }
+  const { dictKey, item } = matched;
+  const dictionaryIndex = dictionaryKeys.indexOf(dictKey);
 
-    if (pixsoName.toLowerCase() === String(dict.designName).toLowerCase()) {
-      return {
-        dict,
-        status: "WRONG_CASE",
-        suggestedName: dict.designName,
-        dictionaryIndex,
-      };
-    }
-
+  if (pixsoName === item.designName) {
     return {
-      dict,
-      status: "REVIEW",
-      suggestedName: dict.designName,
+      dict: item,
+      status: "OK",
+      suggestedName: item.designName,
+      dictionaryIndex,
+    };
+  }
+
+  if (pixsoName.toLowerCase() === String(item.designName).toLowerCase()) {
+    return {
+      dict: item,
+      status: "WRONG_CASE",
+      suggestedName: item.designName,
       dictionaryIndex,
     };
   }
 
   return {
-    dict: null,
-    status: "UNKNOWN",
-    suggestedName: null,
-    dictionaryIndex: null,
+    dict: item,
+    status: "REVIEW",
+    suggestedName: item.designName,
+    dictionaryIndex,
   };
 }
 
+function hasSlotIcon(rawPixsoName: string): boolean {
+  return String(rawPixsoName).trim().startsWith("🔄");
+}
+
+function getNameTypeConsistencyStatus(rawPixsoName: string, propData: any) {
+  const withIcon = hasSlotIcon(rawPixsoName);
+  const designType = String(propData?.type || "").toUpperCase();
+
+  if (withIcon && designType !== "INSTANCE_SWAP") {
+    return {
+      status: "REVIEW",
+      reason: "Slot prop with icon must use INSTANCE_SWAP",
+    };
+  }
+
+  if (!withIcon && designType === "INSTANCE_SWAP") {
+    return {
+      status: "REVIEW",
+      reason: "INSTANCE_SWAP prop must have slot icon",
+    };
+  }
+
+  return null;
+}
+
+function getPropValues(propData: any): string[] | null {
+  const designType = String(propData?.type || "").toUpperCase();
+  const options = propData?.variantOptions;
+
+  // 1. VARIANT с true/false → boolean
+  if (Array.isArray(options) && options.length) {
+    const normalized = options.map((v: any) => String(v).toLowerCase());
+
+    const isBooleanLike =
+      normalized.length === 2 &&
+      normalized.includes("true") &&
+      normalized.includes("false");
+
+    if (isBooleanLike) {
+      return ["boolean"];
+    }
+
+    return options.map((v: any) => String(v));
+  }
+
+  // 2. Чистые типы
+  if (designType === "BOOLEAN") {
+    return ["boolean"];
+  }
+
+  if (designType === "TEXT") {
+    return ["string"];
+  }
+
+  if (designType === "INSTANCE_SWAP") {
+    return ["swap instance"];
+  }
+
+  return null;
+}
+
 function normalizeProp(propName: string, propData: any): NormalizedProp {
+  const rawPixsoName = String(propName);
   const pixsoName = cleanPropName(propName);
   const normalizedName = normalizePixsoName(pixsoName);
   const match = findDictionaryEntry(pixsoName, normalizedName, propData);
-  const dict = match.dict;
+  const dict = match?.dict;
+  const consistencyIssue = getNameTypeConsistencyStatus(rawPixsoName, propData);
 
   return {
+    rawPixsoName,
     pixsoName,
     name: normalizedName,
     designName: dict?.designName || normalizedName,
@@ -224,12 +247,15 @@ function normalizeProp(propName: string, propData: any): NormalizedProp {
     devType: dict?.type || "",
     description: dict?.description || "",
     category: dict?.category || "",
-    values: propData?.variantOptions || null,
+    values: getPropValues(propData),
+    rawVariantOptions: Array.isArray(propData?.variantOptions)
+    ? propData.variantOptions.map((v: any) => String(v))
+    : null,
     defaultValue:
       propData?.defaultValue !== undefined ? propData.defaultValue : null,
-    status: match.status,
-    suggestedName: match.suggestedName,
-    dictionaryIndex: match.dictionaryIndex,
+    status: consistencyIssue?.status || match?.status || "UNKNOWN",
+    suggestedName: match?.suggestedName || null,
+    dictionaryIndex: match?.dictionaryIndex ?? null,
   };
 }
 
@@ -430,12 +456,17 @@ async function setTextInNamedContainer(
 }
 
 function isBooleanLikeProp(prop: NormalizedProp): boolean {
-  const type = String(prop.designType || "").toUpperCase();
+  const designType = String(prop.designType || "").toUpperCase();
+  const devType = String(prop.devType || "").toLowerCase();
 
-  if (type === "BOOLEAN") return true;
+  if (designType === "BOOLEAN") return true;
+  if (devType === "boolean") return true;
 
-  if (prop.values && prop.values.length === 2) {
-    const normalized = prop.values.map((v) => String(v).toLowerCase()).sort();
+  if (prop.rawVariantOptions && prop.rawVariantOptions.length === 2) {
+    const normalized = prop.rawVariantOptions
+      .map((v) => String(v).toLowerCase())
+      .sort();
+
     return normalized[0] === "false" && normalized[1] === "true";
   }
 
@@ -533,6 +564,10 @@ function buildInfoText(prop: NormalizedProp): string {
 function getDemoValues(prop: NormalizedProp): string[] {
   if (isBooleanLikeProp(prop)) {
     return ["true", "false"];
+  }
+
+  if (prop.rawVariantOptions && prop.rawVariantOptions.length) {
+    return prop.rawVariantOptions.map(String);
   }
 
   if (prop.values && prop.values.length) {
