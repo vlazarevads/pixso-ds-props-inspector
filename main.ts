@@ -15,6 +15,7 @@ type NormalizedProp = {
   defaultValue: any;
   status: string;
   suggestedName: string | null;
+  dictionaryIndex: number | null;
 };
 
 type InspectResult = {
@@ -53,14 +54,25 @@ function normalizePixsoName(name: string): string {
 }
 
 function findDictionaryEntry(pixsoName: string, normalizedName: string) {
+  const dictionaryKeys = Object.keys(propsDictionary);
+
   const direct =
     propsDictionary[pixsoName as keyof typeof propsDictionary] ||
     propsDictionary[normalizedName as keyof typeof propsDictionary] ||
     null;
 
   if (direct) {
+    const dictionaryIndex = dictionaryKeys.indexOf(
+      pixsoName in propsDictionary ? pixsoName : normalizedName
+    );  
+
     if (pixsoName === direct.designName) {
-      return { dict: direct, status: "OK", suggestedName: direct.designName };
+      return {
+        dict: direct,
+        status: "OK",
+        suggestedName: direct.designName,
+        dictionaryIndex
+      };
     }
 
     if (pixsoName.toLowerCase() === String(direct.designName).toLowerCase()) {
@@ -68,6 +80,7 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
         dict: direct,
         status: "WRONG_CASE",
         suggestedName: direct.designName,
+        dictionaryIndex
       };
     }
 
@@ -75,6 +88,7 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
       dict: direct,
       status: "REVIEW",
       suggestedName: direct.designName,
+      dictionaryIndex
     };
   }
 
@@ -91,9 +105,14 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
 
   if (matchedKey) {
     const dict = propsDictionary[matchedKey as keyof typeof propsDictionary];
+    const dictionaryIndex = dictionaryKeys.indexOf(matchedKey);
 
     if (pixsoName === dict.designName) {
-      return { dict, status: "OK", suggestedName: dict.designName };
+      return { 
+        dict, status: "OK",
+        suggestedName: dict.designName,
+        dictionaryIndex,
+      };
     }
 
     if (pixsoName.toLowerCase() === String(dict.designName).toLowerCase()) {
@@ -101,6 +120,7 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
         dict,
         status: "WRONG_CASE",
         suggestedName: dict.designName,
+        dictionaryIndex,
       };
     }
 
@@ -108,6 +128,7 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
       dict,
       status: "REVIEW",
       suggestedName: dict.designName,
+      dictionaryIndex,
     };
   }
 
@@ -115,6 +136,7 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string) {
     dict: null,
     status: "UNKNOWN",
     suggestedName: null,
+    dictionaryIndex: null,
   };
 }
 
@@ -138,7 +160,19 @@ function normalizeProp(propName: string, propData: any): NormalizedProp {
       propData?.defaultValue !== undefined ? propData.defaultValue : null,
     status: match.status,
     suggestedName: match.suggestedName,
+    dictionaryIndex: match.dictionaryIndex,
   };
+}
+
+function getPropSortWeight(prop: NormalizedProp): number {
+  const designType = String(prop.designType || "").toUpperCase();
+
+  if (prop.values && prop.values.length && !isBooleanLikeProp(prop)) return 1;
+  if (isBooleanLikeProp(prop)) return 2;
+  if (designType === "TEXT") return 3;
+  if (designType === "INSTANCE_SWAP") return 4;
+
+  return 99;
 }
 
 function inspectSelectedNode() {
@@ -157,9 +191,13 @@ function inspectSelectedNode() {
   lastInspectedNode = node;
   const propDefinitions = node.componentPropertyDefinitions || {};
 
-  const props = Object.entries(propDefinitions).map(([name, data]) =>
-    normalizeProp(name, data)
-  );
+  const props = Object.entries(propDefinitions)
+  .map(([name, data]) => normalizeProp(name, data))
+  .sort((a, b) => {
+    const aIndex = a.dictionaryIndex ?? Number.MAX_SAFE_INTEGER;
+    const bIndex = b.dictionaryIndex ?? Number.MAX_SAFE_INTEGER;
+    return aIndex - bIndex;
+  });
 
   const validation = {
     total: props.length,
@@ -455,8 +493,10 @@ async function buildPropDemos(blockRoot: any, prop: NormalizedProp, sourceNode: 
   // очищаем leftSection
   const children = [...leftSection.children];
   for (const child of children) {
-    if (typeof child.remove === "function") child.remove();
+  if (child.name === "block") {
+    child.remove();
   }
+}
 
   for (const value of values) {
 
@@ -561,15 +601,24 @@ function getPropBlockNodes(block: any) {
 }
 
 async function fillDemoRow(row: any, prop: NormalizedProp, value: string, sourceNode: any) {
-
   const nodeCache = new Map<string, any>();
-    
-  const demoDescriptor = getCachedNode(nodeCache, row, "demoDescriptor");
+
+  const demoDescriptor =
+  getCachedNode(nodeCache, row, "description") ||
+  getCachedNode(nodeCache, row, "demoDescription");
+
   if (demoDescriptor && "visible" in demoDescriptor) {
     demoDescriptor.visible = true;
   }
 
-  const textNode = demoDescriptor ? getCachedNode(nodeCache, demoDescriptor, "text") : null;
+  const textNode = demoDescriptor
+    ? getCachedNode(nodeCache, demoDescriptor, "text")
+    : null;
+
+  if (textNode && "visible" in textNode) {
+    textNode.visible = true;
+  }
+
   if (textNode && textNode.type === "TEXT") {
     await loadTextNodeFontSafe(textNode);
     textNode.characters = `${prop.designName || prop.name} = ${value}`;

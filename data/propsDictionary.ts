@@ -20,7 +20,7 @@ export const propsDictionary = {
   size: {
     designName: "size",
     codeName: "size",
-    type: "[enum]",
+    type: "enum",
     description: "Размер компонента",
     category: "component",
   },
