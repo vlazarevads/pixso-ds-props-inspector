@@ -2,6 +2,7 @@ const inspectBtn = document.getElementById("inspectBtn");
 const copyJsonBtn = document.getElementById("copyJsonBtn");
 const copyTableBtn = document.getElementById("copyTableBtn");
 const generateDocBtn = document.getElementById("generateDocBtn");
+const generateFullDocBtn = document.getElementById("generateFullDocBtn");
 
 setInterval(() => {
   const dots = document.getElementById("dots");
@@ -98,9 +99,16 @@ copyTableBtn.onclick = async () => {
 
 generateDocBtn.onclick = () => {
   showLoading();
-
   parent.postMessage(
     { pluginMessage: { type: "generate-documentation" } },
+    "*"
+  );
+};
+
+generateFullDocBtn.onclick = () => {
+  showLoading();
+  parent.postMessage(
+    { pluginMessage: { type: "generate-full-documentation" } },
     "*"
   );
 };
@@ -108,6 +116,11 @@ generateDocBtn.onclick = () => {
 window.onmessage = (event) => {
   const msg = event.data.pluginMessage;
   if (!msg) return;
+
+  if (msg.type === "key-result") {
+  alert("Key: " + msg.key);
+  return;
+  }
 
   if (msg.type === "progress") {
     const el = document.getElementById("loadingProgress");
@@ -246,3 +259,9 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+const getKeyBtn = document.getElementById("getKeyBtn");
+
+getKeyBtn.onclick = () => {
+  parent.postMessage({ pluginMessage: { type: "get-key" } }, "*");
+};

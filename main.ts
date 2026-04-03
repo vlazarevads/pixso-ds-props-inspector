@@ -849,17 +849,13 @@ async function fillPurposeBlock(block: any, sourceNode: any) {
 }
 
 async function createDocHeader(): Promise<any | null> {
-  const template = findNodeByName(pixso.currentPage, "doc header") as any;
+  const template = await pixso.importComponentByKeyAsync("4a262b5804508871c8115a589a1a05cd6beeb10d");
 
-  if (!template || typeof template.clone !== "function") {
+  if (!template || typeof template.createInstance !== "function") {
     return null;
   }
 
-  const instance = template.clone();
-  const header =
-    typeof instance.detachInstance === "function"
-      ? instance.detachInstance()
-      : instance;
+  const header = template.createInstance();
 
   header.name = "doc header";
 
@@ -887,17 +883,17 @@ async function createDocHeader(): Promise<any | null> {
 }
 
 async function createDocNavigation(props: NormalizedProp[]): Promise<any | null> {
-  const template = findNodeByName(pixso.currentPage, "doc navigation") as any;
+  const template = await pixso.importComponentByKeyAsync("a4b347581afa09e730175cdeb109d065aa8cd607");
 
   if (!template || typeof template.clone !== "function") {
     return null;
   }
 
-  const instance = template.clone();
+  const navInstance = template.createInstance();
   const navigation =
-    typeof instance.detachInstance === "function"
-      ? instance.detachInstance()
-      : instance;
+    typeof navInstance.detachInstance === "function"
+      ? navInstance.detachInstance()
+      : navInstance;
 
   navigation.name = "doc navigation";
 
@@ -935,7 +931,7 @@ async function createDocNavigation(props: NormalizedProp[]): Promise<any | null>
     navList.appendChild(navItem, false);
   }
 
-    if (typeof navItemMaster.remove === "function") {
+  if (typeof navItemMaster.remove === "function") {
     navItemMaster.remove();
   }
 
@@ -964,12 +960,18 @@ async function generateDocumentation() {
       return;
     }
 
-    const template = findNodeByName(pixso.currentPage, "doc content block") as any;
+    const KEYS = {
+      contentBlock: "1b89b827e1c21ed50d3ff95fbef5c616836d9026",
+      header: "4a262b5804508871c8115a589a1a05cd6beeb10d",
+      navigation: "a4b347581afa09e730175cdeb109d065aa8cd607",
+    };
 
-    if (!template) {
-      pixso.notify('Шаблон "doc content block" не найден на текущей странице');
+    const templateComponent = await pixso.importComponentByKeyAsync(KEYS.contentBlock);
+    if (!templateComponent) {
+      pixso.notify('Не удалось загрузить шаблон из библиотеки');
       return;
     }
+    const template = templateComponent;
 
     const pageFrame = pixso.createFrame();
     pageFrame.name = `Doc / ${lastInspectResult.component || "Component"}`;
@@ -1053,12 +1055,12 @@ async function generateDocumentation() {
 
     let createdCount = 0;
 
-    if (typeof template.clone !== "function") {
-      pixso.notify('У шаблона "doc content block" нет clone()');
+    if (typeof template.createInstance !== "function") {
+      pixso.notify('У шаблона "doc content block" нет createInstance()');
       return;
     }
 
-    const purposeInstance = template.clone();
+    const purposeInstance = template.createInstance();
     const purposeBlock =
       typeof purposeInstance.detachInstance === "function"
         ? purposeInstance.detachInstance()
@@ -1077,12 +1079,7 @@ async function generateDocumentation() {
         total: lastInspectResult.props.length
       });
 
-      if (typeof template.clone !== "function") {
-        pixso.notify('У шаблона "doc content block" нет clone()');
-        return;
-      }
-
-      const blockInstance = template.clone();
+      const blockInstance = template.createInstance();
       const block = typeof blockInstance.detachInstance === "function"
         ? blockInstance.detachInstance()
         : blockInstance;
@@ -1098,11 +1095,14 @@ async function generateDocumentation() {
 
     pixso.currentPage.appendChild(pageFrame, false);
 
-    pageFrame.x = (template.x || 0) + (template.width || 0) + 120;
-    pageFrame.y = template.y || 0;
+    const nodeX = lastInspectedNode?.x || 0;
+    const nodeY = lastInspectedNode?.y || 0;
+    pageFrame.x = nodeX;
+    pageFrame.y = nodeY + (lastInspectedNode?.height || 0) + 500;
 
     if ("selection" in pixso.currentPage) {
       pixso.currentPage.selection = [pageFrame];
+      pixso.viewport.scrollAndZoomIntoView([pageFrame]);
     }
 
     const duration = ((Date.now() - startedAt) / 1000).toFixed(2);
@@ -1120,14 +1120,187 @@ async function generateDocumentation() {
       }
 }
 
+async function generateFullDocumentation() {
+  try {
+    if (!lastInspectResult) {
+      pixso.notify("Сначала нажми Inspect component");
+      return;
+    }
+
+    const componentName = lastInspectResult.component || "Component";
+
+    const KEYS = {
+      contentBlock: "1b89b827e1c21ed50d3ff95fbef5c616836d9026",
+    };
+
+    const templateComponent = await pixso.importComponentByKeyAsync(KEYS.contentBlock);
+    if (!templateComponent) {
+      pixso.notify("Не удалось загрузить шаблон");
+      return;
+    }
+
+    // 1. Docs по пропам (существующая логика)
+    await generateDocumentation();
+
+    // 2. How to use
+    const howToUseFrame = pixso.createFrame();
+    howToUseFrame.name = `How to use / ${componentName}`;
+    howToUseFrame.layoutMode = "VERTICAL";
+    howToUseFrame.itemSpacing = 0;
+    howToUseFrame.cornerRadius = 24;
+    howToUseFrame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+    howToUseFrame.paddingLeft = 0;
+    howToUseFrame.paddingRight = 0;
+    howToUseFrame.paddingTop = 0;
+    howToUseFrame.paddingBottom = 0;
+    if ("primaryAxisSizingMode" in howToUseFrame) howToUseFrame.primaryAxisSizingMode = "AUTO";
+    if ("counterAxisSizingMode" in howToUseFrame) howToUseFrame.counterAxisSizingMode = "FIXED";
+    if (typeof howToUseFrame.resize === "function") howToUseFrame.resize(1280, 100);
+
+    const howToUseHeader = await createDocHeader();
+    if (howToUseHeader) {
+      const pageTitle =
+        findNodeByName(howToUseHeader, "pageTitle") ||
+        findNodeByName(howToUseHeader, "title") ||
+        findNodeByName(howToUseHeader, "text");
+      if (pageTitle && pageTitle.type === "TEXT") {
+        await loadTextNodeFontSafe(pageTitle);
+        pageTitle.characters = "How to use";
+      }
+      howToUseFrame.appendChild(howToUseHeader, false);
+    }
+
+    const howToUseBody = pixso.createFrame();
+    howToUseBody.name = "bodyFrame";
+    howToUseBody.layoutMode = "VERTICAL";
+    howToUseBody.itemSpacing = 40;
+    howToUseBody.fills = [];
+    howToUseBody.paddingLeft = 40;
+    howToUseBody.paddingRight = 40;
+    howToUseBody.paddingTop = 40;
+    howToUseBody.paddingBottom = 40;
+    if ("layoutAlign" in howToUseBody) howToUseBody.layoutAlign = "STRETCH";
+    if ("layoutPositioning" in howToUseBody) howToUseBody.layoutPositioning = "AUTO";
+
+    const howToUseNav = await createDocNavigation(lastInspectResult.props);
+    if (howToUseNav) {
+      howToUseBody.appendChild(howToUseNav, false);
+    }
+
+    const howToUseBlock = templateComponent.createInstance();
+    howToUseBlock.name = "doc content block";
+    howToUseBody.appendChild(howToUseBlock, false);
+
+    howToUseFrame.appendChild(howToUseBody, false);
+    pixso.currentPage.appendChild(howToUseFrame, false);
+
+    // 3. Dark mode
+    const darkModeFrame = pixso.createFrame();
+    darkModeFrame.name = `Dark mode / ${componentName}`;
+    darkModeFrame.layoutMode = "VERTICAL";
+    darkModeFrame.itemSpacing = 0;
+    darkModeFrame.cornerRadius = 24;
+    darkModeFrame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+    darkModeFrame.paddingLeft = 0;
+    darkModeFrame.paddingRight = 0;
+    darkModeFrame.paddingTop = 0;
+    darkModeFrame.paddingBottom = 0;
+    if ("primaryAxisSizingMode" in darkModeFrame) darkModeFrame.primaryAxisSizingMode = "AUTO";
+    if ("counterAxisSizingMode" in darkModeFrame) darkModeFrame.counterAxisSizingMode = "FIXED";
+    if (typeof darkModeFrame.resize === "function") darkModeFrame.resize(1280, 100);
+
+    const darkModeHeader = await createDocHeader();
+    if (darkModeHeader) {
+      const pageTitle =
+        findNodeByName(darkModeHeader, "pageTitle") ||
+        findNodeByName(darkModeHeader, "title") ||
+        findNodeByName(darkModeHeader, "text");
+      if (pageTitle && pageTitle.type === "TEXT") {
+        await loadTextNodeFontSafe(pageTitle);
+        pageTitle.characters = "Dark mode";
+      }
+      darkModeFrame.appendChild(darkModeHeader, false);
+    }
+
+    const darkModeBody = pixso.createFrame();
+    darkModeBody.name = "bodyFrame";
+    darkModeBody.layoutMode = "VERTICAL";
+    darkModeBody.itemSpacing = 40;
+    darkModeBody.fills = [];
+    darkModeBody.paddingLeft = 40;
+    darkModeBody.paddingRight = 40;
+    darkModeBody.paddingTop = 40;
+    darkModeBody.paddingBottom = 40;
+    if ("layoutAlign" in darkModeBody) darkModeBody.layoutAlign = "STRETCH";
+    if ("layoutPositioning" in darkModeBody) darkModeBody.layoutPositioning = "AUTO";
+
+    const darkModeBlock = templateComponent.createInstance();
+    darkModeBlock.name = "doc content block";
+    darkModeBody.appendChild(darkModeBlock, false);
+
+    darkModeFrame.appendChild(darkModeBody, false);
+    pixso.currentPage.appendChild(darkModeFrame, false);
+
+    // Позиционирование: 500px ниже компонента, слева направо с отступом 150px
+    const baseX = lastInspectedNode?.x || 0;
+    const baseY = (lastInspectedNode?.y || 0) + (lastInspectedNode?.height || 0) + 500;
+    const gap = 150;
+    const frameWidth = 1280;
+
+    // Найти props doc фрейм (он уже создан generateDocumentation)
+    const propsDocFrame = pixso.currentPage.children.find(
+      (n: any) => n.name === `Doc / ${componentName}`
+    ) as any;
+
+    if (propsDocFrame) {
+      propsDocFrame.x = baseX;
+      propsDocFrame.y = baseY;
+    }
+
+    howToUseFrame.x = baseX + frameWidth + gap;
+    howToUseFrame.y = baseY;
+
+    darkModeFrame.x = baseX + (frameWidth + gap) * 2;
+    darkModeFrame.y = baseY;
+
+    const frames = [propsDocFrame, howToUseFrame, darkModeFrame].filter(Boolean);
+    if ("selection" in pixso.currentPage) {
+      pixso.currentPage.selection = frames;
+    }
+    pixso.viewport.scrollAndZoomIntoView(frames);
+
+    pixso.notify(`Полная документация создана: ${componentName}`);
+  } catch (error) {
+    console.error(error);
+    pixso.notify(`Ошибка: ${String(error)}`);
+  } finally {
+    pixso.ui.postMessage({ type: "generation-finished" });
+  }
+}
+
 pixso.ui.onmessage = async (msg) => {
   if (msg.type === "inspect") {
     inspectSelectedNode();
     return;
   }
 
+  if (msg.type === "get-key") {
+    const node = pixso.currentPage.selection[0] as any;
+    if (node?.key) {
+      pixso.ui.postMessage({ type: "key-result", key: node.key });
+    } else {
+      pixso.notify("Выбери компонент из библиотеки");
+    }
+    return;
+  }
+
   if (msg.type === "generate-documentation") {
     await generateDocumentation();
+    return;
+  }
+
+  if (msg.type === "generate-full-documentation") {
+    await generateFullDocumentation();
     return;
   }
 };
