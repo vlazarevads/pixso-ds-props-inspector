@@ -5,6 +5,7 @@ import { propSynonyms } from "./data/propSynonyms";
 const COMPONENT_KEY_CONTENT_BLOCK = "1b89b827e1c21ed50d3ff95fbef5c616836d9026";
 const COMPONENT_KEY_DOC_HEADER     = "4a262b5804508871c8115a589a1a05cd6beeb10d";
 const COMPONENT_KEY_DOC_NAVIGATION = "a4b347581afa09e730175cdeb109d065aa8cd607";
+const COMPONENT_KEY_STATUS_NAV     = "REPLACE_ME"; // ← вставь ключ вручную
 
 pixso.showUI(__html__, { width: 720, height: 560 });
 
@@ -886,6 +887,28 @@ async function fillPurposeBlock(block: any, sourceNode: any) {
   }
 }
 
+async function createStatusNav(componentName: string): Promise<any | null> {
+  const template = await pixso.importComponentByKeyAsync(COMPONENT_KEY_STATUS_NAV);
+  if (!template || typeof template.createInstance !== "function") return null;
+
+  const instance = template.createInstance();
+  const nav = typeof instance.detachInstance === "function"
+    ? instance.detachInstance()
+    : instance;
+
+  nav.name = `Status nav / ${componentName}`;
+
+  // Меняем pageTitle: первая буква заглавная
+  const capitalizedName = componentName.charAt(0).toUpperCase() + componentName.slice(1);
+  const titleNode = nav.findOne?.((n: any) => n.name === "pageTitle" && n.type === "TEXT") as any;
+  if (titleNode && typeof titleNode.characters !== "undefined") {
+    await pixso.loadFontAsync(titleNode.fontName);
+    titleNode.characters = capitalizedName;
+  }
+
+  return nav;
+}
+
 async function createDocHeader(): Promise<any | null> {
   const template = await pixso.importComponentByKeyAsync(COMPONENT_KEY_DOC_HEADER);
 
@@ -1530,11 +1553,25 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
 
     await applyDarkTokenMode(darkModeFrame);
 
+    // Status nav — слева от Doc
+    const statusNavFrame = await createStatusNav(componentName);
+    if (statusNavFrame) {
+      pixso.currentPage.appendChild(statusNavFrame, false);
+    }
+
     // Позиционирование: 500px ниже компонента, слева направо с отступом 150px
     const baseX = lastInspectedNode?.x || 0;
     const baseY = (lastInspectedNode?.y || 0) + (lastInspectedNode?.height || 0) + 500;
     const gap = 150;
     const frameWidth = 1280;
+    const statusNavWidth = statusNavFrame?.width || 0;
+    const docOffsetX = statusNavFrame ? statusNavWidth + gap : 0;
+
+    // Status nav левее Doc
+    if (statusNavFrame) {
+      statusNavFrame.x = baseX;
+      statusNavFrame.y = baseY;
+    }
 
     // Найти props doc фрейм (он уже создан generateDocumentation)
     const propsDocFrame = pixso.currentPage.children.find(
@@ -1542,24 +1579,24 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
     ) as any;
 
     if (propsDocFrame) {
-      propsDocFrame.x = baseX;
+      propsDocFrame.x = baseX + docOffsetX;
       propsDocFrame.y = baseY;
     }
 
     // Tech doc фреймы после основного Doc
     techDocFrames.forEach((f, i) => {
-      f.x = baseX + (frameWidth + gap) * (i + 1);
+      f.x = baseX + docOffsetX + (frameWidth + gap) * (i + 1);
       f.y = baseY;
     });
 
     const techOffset = techDocFrames.length + 1;
-    howToUseFrame.x = baseX + (frameWidth + gap) * techOffset;
+    howToUseFrame.x = baseX + docOffsetX + (frameWidth + gap) * techOffset;
     howToUseFrame.y = baseY;
 
-    darkModeFrame.x = baseX + (frameWidth + gap) * (techOffset + 1);
+    darkModeFrame.x = baseX + docOffsetX + (frameWidth + gap) * (techOffset + 1);
     darkModeFrame.y = baseY;
 
-    const frames = [propsDocFrame, ...techDocFrames, howToUseFrame, darkModeFrame].filter(Boolean);
+    const frames = [statusNavFrame, propsDocFrame, ...techDocFrames, howToUseFrame, darkModeFrame].filter(Boolean);
     if ("selection" in pixso.currentPage) {
       pixso.currentPage.selection = frames;
     }
