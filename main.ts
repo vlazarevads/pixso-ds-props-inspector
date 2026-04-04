@@ -620,7 +620,7 @@ async function buildPropDemos(blockRoot: any, prop: NormalizedProp, sourceNode: 
   }
 }
 
-function createDemoInstance(sourceNode: any, prop?: NormalizedProp, value?: string) {
+function createDemoInstance(sourceNode: any, prop?: NormalizedProp, value?: string, extraOverrides?: Record<string, any>) {
   if (!sourceNode) return null;
 
   if (sourceNode.type === "COMPONENT_SET") {
@@ -636,6 +636,12 @@ function createDemoInstance(sourceNode: any, prop?: NormalizedProp, value?: stri
       value === "true" ? true :
       value === "false" ? false :
       value;
+  }
+
+  if (extraOverrides) {
+    for (const [k, v] of Object.entries(extraOverrides)) {
+      target[k] = v;
+    }
   }
 
     const resolverKey = buildVariantResolverKey(target);
@@ -882,7 +888,7 @@ async function createDocHeader(): Promise<any | null> {
   return header;
 }
 
-async function createDocNavigation(props: NormalizedProp[]): Promise<any | null> {
+async function createDocNavigation(items: string[]): Promise<any | null> {
   const template = await pixso.importComponentByKeyAsync("a4b347581afa09e730175cdeb109d065aa8cd607");
 
   if (!template || typeof template.clone !== "function") {
@@ -907,7 +913,7 @@ async function createDocNavigation(props: NormalizedProp[]): Promise<any | null>
   // СНАЧАЛА делаем безопасную копию шаблона
   const navItemMaster = navItemTemplate.clone();
 
-  const navItems = ["purpose", ...props.map((p) => p.designName || p.name)];
+  const navItems = items;
 
   // ПОТОМ очищаем список
   const oldChildren = [...navList.children];
@@ -952,7 +958,248 @@ async function createDocNavigation(props: NormalizedProp[]): Promise<any | null>
   return navigation;
 }
 
-async function generateDocumentation() {
+// ─── Dark mode helpers ────────────────────────────────────────────────────────
+
+// Props that represent interactive state → columns of the matrix
+const STATE_PROP_NAMES = /^(state|selected|checked|pressed|focused|status)$/i;
+// Props that represent visual appearance → rows of the matrix
+const COLOR_PROP_NAMES = /^(mode|variant|type|kind|appearance|level|severity|color|style|look)$/i;
+
+function buildCombinations(props: NormalizedProp[]): Record<string, string>[] {
+  if (props.length === 0) return [{}];
+  const [first, ...rest] = props;
+  const restCombos = buildCombinations(rest);
+  const result: Record<string, string>[] = [];
+  for (const val of (first.values as string[])) {
+    for (const combo of restCombos) {
+      result.push({ [first.pixsoName]: val, ...combo });
+    }
+  }
+  return result;
+}
+
+async function applyDarkTokenMode(_frame: any): Promise<boolean> {
+  // Pixso не открывает доступ к библиотечным токенам через plugin API.
+  // getLocalVariables / getLocalVariableCollections / getAvailableLibraryVariableCollectionsAsync
+  // возвращают 0. Заглушка для будущего API.
+  return false;
+}
+
+async function _applyDarkTokenMode_disabled(frame: any): Promise<boolean> {
+  try {
+    const vars = (pixso as any).variables;
+    const localVars: any[] = vars.getLocalVariables?.() ?? [];
+    pixso.notify(`localVars: ${localVars.length}`);
+
+    if (localVars.length > 0) {
+      // Собираем уникальные collection IDs
+      const colIds = [...new Set(localVars.map((v: any) => v.variableCollectionId).filter(Boolean))];
+      pixso.notify(`colIds from localVars: ${colIds.join(', ')}`);
+
+      for (const colId of colIds) {
+        const col = vars.getVariableCollectionById?.(colId);
+        if (!col) continue;
+        const modes: string[] = col.modes?.map((m: any) => m.name) ?? [];
+        pixso.notify(`col "${col.name}" modes: ${modes.join(', ')}`);
+        const hasDark = modes.some(n => /dark/i.test(n));
+        const hasLight = modes.some(n => /light|auto/i.test(n));
+        if (!hasDark || !hasLight) continue;
+        const darkMode = col.modes.find((m: any) => /dark/i.test(m.name));
+        if (darkMode && typeof frame.setExplicitVariableModeForCollection === "function") {
+          frame.setExplicitVariableModeForCollection(col.id, darkMode.modeId);
+          pixso.notify(`Applied "${darkMode.name}" from "${col.name}"`);
+          return true;
+        }
+      }
+    }
+
+    const tl = (pixso as any).teamLibrary;
+    if (!tl?.getAvailableLibraryVariableCollectionsAsync) {
+      pixso.notify("teamLibrary not available"); return false;
+    }
+
+    const libCollections: any[] = await tl.getAvailableLibraryVariableCollectionsAsync();
+    pixso.notify(`libCollections: ${libCollections.length} | names: ${libCollections.map((c: any) => c.name).join(', ')}`);
+    if (!libCollections.length) return false;
+
+    let applied = 0;
+
+    for (const libCol of libCollections) {
+      pixso.notify(`processing: "${libCol.name}" key=${libCol.key}`);
+
+      const libVars: any[] = await tl.getVariablesInLibraryCollectionAsync(libCol);
+      pixso.notify(`  vars: ${libVars?.length ?? 0}`);
+      if (!libVars?.length) continue;
+
+      let localVar: any;
+      try {
+        localVar = await (pixso as any).variables.importVariableByKeyAsync(libVars[0].key);
+      } catch (e) {
+        pixso.notify(`  importVariableByKeyAsync failed: ${String(e)}`); continue;
+      }
+      pixso.notify(`  localVar: ${localVar?.name} colId=${localVar?.variableCollectionId}`);
+      if (!localVar?.variableCollectionId) continue;
+
+      const localCol = (pixso as any).variables.getVariableCollectionById(localVar.variableCollectionId);
+      pixso.notify(`  localCol: ${localCol?.name} modes=${localCol?.modes?.map((m: any) => m.name).join(',')}`);
+      if (!localCol?.modes) continue;
+
+      const modeNames: string[] = localCol.modes.map((m: any) => m.name);
+      const hasDark  = modeNames.some((n: string) => /dark/i.test(n));
+      const hasLight = modeNames.some((n: string) => /light|auto/i.test(n));
+      if (!hasDark || !hasLight) { pixso.notify(`  skip (no Light+Dark)`); continue; }
+
+      const darkMode = localCol.modes.find((m: any) => /dark/i.test(m.name));
+      if (darkMode) {
+        frame.setExplicitVariableModeForCollection(localCol.id, darkMode.modeId);
+        pixso.notify(`  applied Dark mode "${darkMode.name}"`);
+        applied++;
+      }
+    }
+
+    if (applied > 0) {
+      pixso.notify(`Dark mode применён (${applied} коллекций)`);
+      return true;
+    }
+    return false;
+  } catch (e) {
+    pixso.notify(`applyDarkTokenMode error: ${String(e)}`);
+    return false;
+  }
+}
+
+async function fillDarkModeBody(bodyFrame: any): Promise<void> {
+  if (!lastInspectedNode || !lastInspectResult) return;
+
+  // Убираем placeholder
+  const placeholder = findNodeByName(bodyFrame, "doc content block");
+  if (placeholder && typeof placeholder.remove === "function") placeholder.remove();
+
+  // Загружаем шаблон блока
+  const CONTENT_BLOCK_KEY = "1b89b827e1c21ed50d3ff95fbef5c616836d9026";
+  const template = await pixso.importComponentByKeyAsync(CONTENT_BLOCK_KEY);
+  if (!template || typeof template.createInstance !== "function") return;
+
+  const blockInstance = template.createInstance();
+  const block = typeof blockInstance.detachInstance === "function"
+    ? blockInstance.detachInstance()
+    : blockInstance;
+
+  block.name = "dark mode matrix";
+  block.visible = true;
+
+  // Убираем header
+  const headerNode = findNodeByName(block, "header") || findNodeByName(block, "Header");
+  if (headerNode && typeof headerNode.remove === "function") headerNode.remove();
+
+  // Убираем rightSection
+  const rightSection = findNodeByName(block, "rightSection");
+  if (rightSection && typeof rightSection.remove === "function") rightSection.remove();
+
+  // leftSection растягиваем на всю ширину
+  const leftSection = findNodeByName(block, "leftSection");
+  if (leftSection) {
+    if ("layoutAlign" in leftSection) leftSection.layoutAlign = "STRETCH";
+    if ("layoutGrow" in leftSection) leftSection.layoutGrow = 1;
+
+    // demoBG — меняем mode на white
+    const demoBG = findNodeByName(leftSection, "demoBG");
+    if (demoBG && demoBG.componentProperties !== undefined) {
+      try {
+        demoBG.setProperties({ mode: "white" });
+      } catch (_) {}
+    }
+    if (demoBG && typeof (demoBG as any).setProperties === "function") {
+      try { (demoBG as any).setProperties({ mode: "white" }); } catch (_) {}
+    }
+  }
+
+  // Строим матрицу
+  const variantProps: NormalizedProp[] = lastInspectResult.props.filter(
+    (p: NormalizedProp) => p.designType === "VARIANT" && Array.isArray(p.values) && p.values.length > 1
+  );
+
+  const columnProps = variantProps.filter((p: NormalizedProp) => STATE_PROP_NAMES.test(p.pixsoName));
+  let rowProps = variantProps.filter(
+    (p: NormalizedProp) => !STATE_PROP_NAMES.test(p.pixsoName) && COLOR_PROP_NAMES.test(p.pixsoName)
+  );
+  if (rowProps.length === 0) {
+    rowProps = variantProps.filter((p: NormalizedProp) => !STATE_PROP_NAMES.test(p.pixsoName));
+  }
+
+  const rowCombos = buildCombinations(rowProps);
+  const colCombos = columnProps.length > 0 ? buildCombinations(columnProps) : [{}];
+
+  // Контейнер матрицы — вертикальный, строки горизонтальные
+  const matrixFrame = pixso.createFrame();
+  matrixFrame.name = "matrix";
+  matrixFrame.layoutMode = "VERTICAL";
+  matrixFrame.itemSpacing = 24;
+  matrixFrame.fills = [];
+  matrixFrame.paddingLeft = 0;
+  matrixFrame.paddingRight = 0;
+  matrixFrame.paddingTop = 0;
+  matrixFrame.paddingBottom = 0;
+  if ("primaryAxisSizingMode" in matrixFrame) matrixFrame.primaryAxisSizingMode = "AUTO";
+
+  for (const rowCombo of rowCombos) {
+    const label = Object.entries(rowCombo).map(([k, v]) => `${k}=${v}`).join(', ') || 'default';
+
+    const rowFrame = pixso.createFrame();
+    rowFrame.name = `row / ${label}`;
+    rowFrame.layoutMode = "HORIZONTAL";
+    rowFrame.itemSpacing = 24;
+    rowFrame.fills = [];
+    rowFrame.paddingLeft = 0;
+    rowFrame.paddingRight = 0;
+    rowFrame.paddingTop = 0;
+    rowFrame.paddingBottom = 0;
+    if ("primaryAxisSizingMode" in rowFrame) rowFrame.primaryAxisSizingMode = "AUTO";
+    if ("counterAxisSizingMode" in rowFrame) rowFrame.counterAxisSizingMode = "AUTO";
+
+    for (const colCombo of colCombos) {
+      const overrides: Record<string, any> = { ...rowCombo, ...colCombo };
+      const instance = createDemoInstance(lastInspectedNode, undefined, undefined, overrides);
+      if (instance) rowFrame.appendChild(instance, false);
+    }
+
+    matrixFrame.appendChild(rowFrame, false);
+  }
+
+  // Вставляем матрицу в demoPlaceholder блока
+  const demoPh =
+    findNodeByName(block, "demoPlaceholder") ||
+    findNodeByName(block, "demo-placeholder");
+
+  if (demoPh && demoPh.parent) {
+    const demoParent = demoPh.parent;
+    if (typeof demoPh.remove === "function") demoPh.remove();
+    if (typeof demoParent.appendChild === "function") demoParent.appendChild(matrixFrame, false);
+  } else {
+    // Если placeholder не найден — кладём матрицу прямо в блок
+    if (typeof block.appendChild === "function") block.appendChild(matrixFrame, false);
+  }
+
+  // После вставки в родителя растягиваем на всю ширину
+  if ("counterAxisSizingMode" in matrixFrame) matrixFrame.counterAxisSizingMode = "FIXED";
+  if ("layoutAlign" in matrixFrame) matrixFrame.layoutAlign = "STRETCH";
+  if ("layoutGrow" in matrixFrame) matrixFrame.layoutGrow = 1;
+  if ("counterAxisAlignItems" in matrixFrame) matrixFrame.counterAxisAlignItems = "CENTER";
+  if ("primaryAxisAlignItems" in matrixFrame) matrixFrame.primaryAxisAlignItems = "CENTER";
+
+  bodyFrame.appendChild(block, false);
+}
+
+function removeFrameByName(name: string) {
+  const existing = pixso.currentPage.children.find(
+    (n: any) => n.name === name && n.type === "FRAME"
+  ) as any;
+  if (existing && typeof existing.remove === "function") {
+    existing.remove();
+  }
+}
+
+async function generateDocumentation(silent = false) {
   const startedAt = Date.now();
   try {
     if (!lastInspectResult) {
@@ -972,6 +1219,8 @@ async function generateDocumentation() {
       return;
     }
     const template = templateComponent;
+
+    removeFrameByName(`Doc / ${lastInspectResult.component || "Component"}`);
 
     const pageFrame = pixso.createFrame();
     pageFrame.name = `Doc / ${lastInspectResult.component || "Component"}`;
@@ -1040,7 +1289,7 @@ async function generateDocumentation() {
     }
 
     const header = await createDocHeader();
-    const navigation = await createDocNavigation(lastInspectResult.props);
+    const navigation = await createDocNavigation(["purpose", ...lastInspectResult.props.map((p: NormalizedProp) => p.designName || p.name)]);
 
     if (header) {
       pageFrame.appendChild(header, false);
@@ -1114,7 +1363,7 @@ async function generateDocumentation() {
         console.error(error);
         pixso.notify(`Ошибка генерации: ${String(error)}`);
       } finally {
-        pixso.ui.postMessage({
+        if (!silent) pixso.ui.postMessage({
           type: "generation-finished"
         });
       }
@@ -1139,10 +1388,11 @@ async function generateFullDocumentation() {
       return;
     }
 
-    // 1. Docs по пропам (существующая логика)
-    await generateDocumentation();
+    // 1. Docs по пропам (без generation-finished — его шлёт generateFullDocumentation)
+    await generateDocumentation(true);
 
     // 2. How to use
+    removeFrameByName(`How to use / ${componentName}`);
     const howToUseFrame = pixso.createFrame();
     howToUseFrame.name = `How to use / ${componentName}`;
     howToUseFrame.layoutMode = "VERTICAL";
@@ -1182,7 +1432,7 @@ async function generateFullDocumentation() {
     if ("layoutAlign" in howToUseBody) howToUseBody.layoutAlign = "STRETCH";
     if ("layoutPositioning" in howToUseBody) howToUseBody.layoutPositioning = "AUTO";
 
-    const howToUseNav = await createDocNavigation(lastInspectResult.props);
+    const howToUseNav = await createDocNavigation(["..."]);  // заменяется при Import How to use
     if (howToUseNav) {
       howToUseBody.appendChild(howToUseNav, false);
     }
@@ -1195,6 +1445,7 @@ async function generateFullDocumentation() {
     pixso.currentPage.appendChild(howToUseFrame, false);
 
     // 3. Dark mode
+    removeFrameByName(`Dark mode / ${componentName}`);
     const darkModeFrame = pixso.createFrame();
     darkModeFrame.name = `Dark mode / ${componentName}`;
     darkModeFrame.layoutMode = "VERTICAL";
@@ -1234,12 +1485,12 @@ async function generateFullDocumentation() {
     if ("layoutAlign" in darkModeBody) darkModeBody.layoutAlign = "STRETCH";
     if ("layoutPositioning" in darkModeBody) darkModeBody.layoutPositioning = "AUTO";
 
-    const darkModeBlock = templateComponent.createInstance();
-    darkModeBlock.name = "doc content block";
-    darkModeBody.appendChild(darkModeBlock, false);
+    await fillDarkModeBody(darkModeBody);
 
     darkModeFrame.appendChild(darkModeBody, false);
     pixso.currentPage.appendChild(darkModeFrame, false);
+
+    await applyDarkTokenMode(darkModeFrame);
 
     // Позиционирование: 500px ниже компонента, слева направо с отступом 150px
     const baseX = lastInspectedNode?.x || 0;
@@ -1278,9 +1529,243 @@ async function generateFullDocumentation() {
   }
 }
 
+type HowToUseSection = {
+  title: string;
+  description: string;
+  example: Record<string, string>;
+  source?: string;
+};
+
+type HowToUseData = {
+  component: string;
+  sections: HowToUseSection[];
+  ideas?: HowToUseSection[];
+};
+
+async function fillHowToUseBlock(block: any, section: HowToUseSection) {
+  // Title
+  const titleNode =
+    findNodeByName(block, "title") ||
+    findNodeByName(block, "Header") ||
+    findNodeByName(block, "text");
+
+  if (titleNode && titleNode.type === "TEXT") {
+    await loadTextNodeFontSafe(titleNode);
+    titleNode.characters = section.title || "";
+  }
+
+  // Description → item/info
+  await setTextInNamedContainer(block, "item/info", section.description || "");
+
+  // Hide item/design and item/dev — not used here
+  const designItem = findNodeByName(block, "item/design");
+  if (designItem && "visible" in designItem) designItem.visible = false;
+
+  const devItem = findNodeByName(block, "item/dev");
+  if (devItem && "visible" in devItem) devItem.visible = false;
+
+  // Demo — apply ALL props from example
+  if (lastInspectedNode && section.example && Object.keys(section.example).length > 0) {
+    const exampleEntries = Object.entries(section.example);
+
+    // Map all example keys to pixsoName overrides
+    const overrides: Record<string, any> = {};
+    let firstProp: NormalizedProp | undefined;
+    let firstValue: string | undefined;
+
+    for (const [exKey, exVal] of exampleEntries) {
+      const matched = lastInspectResult?.props.find(
+        (p: NormalizedProp) =>
+          (p.designName || "").toLowerCase() === exKey.toLowerCase() ||
+          (p.codeName || "").toLowerCase() === exKey.toLowerCase() ||
+          p.pixsoName.toLowerCase() === exKey.toLowerCase()
+      );
+      if (matched) {
+        const resolved = String(exVal) === "true" ? true : String(exVal) === "false" ? false : String(exVal);
+        overrides[matched.pixsoName] = resolved;
+        if (!firstProp) { firstProp = matched; firstValue = String(exVal); }
+      }
+    }
+
+    const demo = createDemoInstance(
+      lastInspectedNode,
+      firstProp,
+      firstValue,
+      overrides
+    );
+
+    if (demo) {
+      const placeholder =
+        findNodeByName(block, "demoPlaceholder") ||
+        findNodeByName(block, "demo-placeholder");
+
+      if (placeholder && placeholder.parent) {
+        const parent = placeholder.parent;
+        if (typeof placeholder.remove === "function") placeholder.remove();
+        if (typeof parent.appendChild === "function") parent.appendChild(demo, false);
+      }
+    }
+  }
+}
+
+async function importHowToUse(data: HowToUseData) {
+  try {
+    if (!data?.sections?.length) {
+      pixso.notify("JSON не содержит секций");
+      return;
+    }
+
+    const componentName = data.component || lastInspectResult?.component || "Component";
+    const frameName = `How to use / ${componentName}`;
+
+    const existingFrame = pixso.currentPage.children.find(
+      (n: any) => n.name === frameName && n.type === "FRAME"
+    ) ?? null;
+
+    if (!existingFrame) {
+      pixso.notify(`Фрейм "${frameName}" не найден. Сначала запусти "Сгенерировать полную документацию"`);
+      return;
+    }
+
+    // Если lastInspectedNode сброшен (перезагрузка плагина) — попробуем найти компонент по выделению или по странице
+    if (!lastInspectedNode) {
+      const sel = pixso.currentPage.selection[0] as any;
+      if (sel && (sel.type === "COMPONENT_SET" || sel.type === "COMPONENT")) {
+        lastInspectedNode = sel;
+        defaultPropsCache = null; // пересчитаем при необходимости
+        pixso.notify("Использую выделенный компонент для демо");
+      } else {
+        // Ищем COMPONENT_SET с именем компонента на странице
+        const found = pixso.currentPage.children.find(
+          (n: any) => (n.type === "COMPONENT_SET" || n.type === "COMPONENT") &&
+            n.name.toLowerCase() === componentName.toLowerCase()
+        ) as any;
+        if (found) {
+          lastInspectedNode = found;
+          defaultPropsCache = null;
+          pixso.notify(`Нашёл компонент "${found.name}" на странице`);
+        } else {
+          pixso.notify("Демо не создать: выдели компонент и нажми «Проверить компонент»");
+        }
+      }
+    }
+
+    const CONTENT_BLOCK_KEY = "1b89b827e1c21ed50d3ff95fbef5c616836d9026";
+    const template = await pixso.importComponentByKeyAsync(CONTENT_BLOCK_KEY);
+
+    if (!template || typeof template.createInstance !== "function") {
+      pixso.notify("Не удалось загрузить шаблон content block");
+      return;
+    }
+
+    const bodyFrame = findNodeByName(existingFrame, "bodyFrame");
+    if (!bodyFrame) {
+      pixso.notify('Не найден "bodyFrame" внутри How to use фрейма');
+      return;
+    }
+
+    // Remove placeholder block left by generateFullDocumentation
+    const placeholder = findNodeByName(bodyFrame, "doc content block");
+    if (placeholder && typeof placeholder.remove === "function") {
+      placeholder.remove();
+    }
+
+    for (let i = 0; i < data.sections.length; i++) {
+      const section = data.sections[i];
+      let step = "createInstance";
+      try {
+        const blockInstance = template.createInstance();
+
+        step = "detachInstance";
+        const block =
+          typeof blockInstance.detachInstance === "function"
+            ? blockInstance.detachInstance()
+            : blockInstance;
+
+        step = "set name/visible";
+        block.name = `section / ${section.title || "untitled"}`;
+        block.visible = true;
+
+        step = `appendChild (bodyFrame.type=${bodyFrame.type}, appendChild=${typeof bodyFrame.appendChild})`;
+        bodyFrame.appendChild(block, false);
+
+        step = "fillHowToUseBlock";
+        await fillHowToUseBlock(block, section);
+      } catch (blockErr) {
+        pixso.notify(`Блок ${i + 1} упал на шаге "${step}": ${String(blockErr)}`);
+        return;
+      }
+    }
+
+    // Ideas-блоки с серым фоном
+    if (data.ideas && data.ideas.length > 0) {
+      for (let i = 0; i < data.ideas.length; i++) {
+        const idea = data.ideas[i];
+        let step = "createInstance";
+        try {
+          const blockInstance = template.createInstance();
+          step = "detachInstance";
+          const block =
+            typeof blockInstance.detachInstance === "function"
+              ? blockInstance.detachInstance()
+              : blockInstance;
+
+          block.name = `idea / ${idea.title || "untitled"}`;
+          block.visible = true;
+
+          // Серый фон для визуального выделения
+          block.fills = [{ type: "SOLID", color: { r: 0.95, g: 0.95, b: 0.96 } }];
+
+          step = "appendChild idea";
+          bodyFrame.appendChild(block, false);
+
+          step = "fillHowToUseBlock idea";
+          await fillHowToUseBlock(block, idea);
+        } catch (ideaErr) {
+          pixso.notify(`Идея ${i + 1} упала на шаге "${step}": ${String(ideaErr)}`);
+        }
+      }
+    }
+
+    // Пересоздаём навигацию из тайтлов секций
+    const oldNav = findNodeByName(bodyFrame, "doc navigation");
+    if (oldNav && typeof oldNav.remove === "function") oldNav.remove();
+
+    const sectionTitles = data.sections.map((s: HowToUseSection) => s.title || "untitled");
+    const newNav = await createDocNavigation(sectionTitles);
+    if (newNav) {
+      // Вставляем навигацию первым элементом bodyFrame
+      if (bodyFrame.children && bodyFrame.children.length > 0) {
+        bodyFrame.insertChild(0, newNav);
+      } else {
+        bodyFrame.appendChild(newNav, false);
+      }
+    }
+
+    pixso.viewport.scrollAndZoomIntoView([existingFrame]);
+    pixso.notify(`How to use импортирован: ${data.sections.length} секций`);
+  } catch (error) {
+    pixso.notify(`Ошибка импорта: ${String(error)}`);
+  }
+}
+
 pixso.ui.onmessage = async (msg) => {
   if (msg.type === "inspect") {
     inspectSelectedNode();
+    return;
+  }
+
+  if (msg.type === "check-frames") {
+    const componentName = lastInspectResult?.component || "";
+    const frameNames = [
+      `Doc / ${componentName}`,
+      `How to use / ${componentName}`,
+      `Dark mode / ${componentName}`,
+    ];
+    const existing = frameNames.filter(name =>
+      pixso.currentPage.children.some((n: any) => n.name === name)
+    );
+    pixso.ui.postMessage({ type: "frames-check-result", existing });
     return;
   }
 
@@ -1301,6 +1786,12 @@ pixso.ui.onmessage = async (msg) => {
 
   if (msg.type === "generate-full-documentation") {
     await generateFullDocumentation();
+    return;
+  }
+
+  if (msg.type === "import-how-to-use") {
+    await importHowToUse(msg.data);
+    pixso.ui.postMessage({ type: "generation-finished" });
     return;
   }
 };

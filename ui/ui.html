@@ -5,49 +5,68 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Component Props Inspector</title>
     <style>
-      html,
-      body {
+      html, body {
         margin: 0;
         padding: 0;
         width: 100%;
         height: 100%;
-      }
-
-      * {
         box-sizing: border-box;
       }
+      * { box-sizing: border-box; }
 
       body {
         font-family: Arial, sans-serif;
         background: #fff;
         color: #111;
+        font-size: 13px;
       }
 
-      .app {
+      .panel {
+        display: none;
         padding: 16px;
       }
+      .panel.active {
+        display: block;
+      }
 
-      .title {
-        margin: 0 0 12px;
-        font-size: 18px;
+      h3 {
+        margin: 0 0 16px;
+        font-size: 16px;
       }
 
       .actions {
         display: flex;
-        gap: 8px;
+        gap: 6px;
         margin-bottom: 12px;
         flex-wrap: wrap;
       }
 
       button {
-        padding: 8px 10px;
+        padding: 7px 12px;
         cursor: pointer;
+        border: 1px solid #ccc;
+        background: #f5f5f5;
+        border-radius: 4px;
+        font-size: 12px;
       }
+      button:hover { background: #e8e8e8; }
+      button.primary {
+        background: #0066ff;
+        color: #fff;
+        border-color: #0055dd;
+      }
+      button.primary:hover { background: #0055dd; }
+      button.danger {
+        background: #fff;
+        color: #cc2200;
+        border-color: #cc2200;
+      }
+      button.danger:hover { background: #fff0ee; }
 
       .meta {
         font-size: 12px;
         color: #555;
-        margin-bottom: 12px;
+        margin-bottom: 10px;
         line-height: 1.5;
       }
 
@@ -55,99 +74,195 @@
         background: #f4f4f4;
         border-radius: 8px;
         padding: 8px;
-        max-height: 320px;
+        max-height: 280px;
         overflow: auto;
       }
 
       table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 12px;
+        font-size: 11px;
         background: #fff;
       }
-
-      th,
-      td {
+      th, td {
         border: 1px solid #ddd;
-        padding: 8px;
+        padding: 6px 8px;
         vertical-align: top;
         text-align: left;
       }
-
       th {
         background: #f0f0f0;
         position: sticky;
         top: 0;
         z-index: 1;
       }
-
       .empty {
         font-size: 12px;
         color: #666;
         padding: 12px;
       }
+      .status-review td { background: #fff6dd; }
+      .status-unknown td { background: #f2f2f2; }
+      .status-wrong_case td { background: #e7f1ff; }
 
-      .status {
-        font-size: 12px;
-        color: #666;
+      /* Prompt / confirm panels */
+      .prompt-box {
+        background: #f8f8f8;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
         margin-top: 8px;
       }
-
-      .status-review td {
-        background: #fff6dd;
+      .prompt-box p {
+        margin: 0 0 12px;
+        line-height: 1.5;
+        color: #333;
+      }
+      .prompt-box .btn-row {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .prompt-box .btn-row button {
+        flex: 1;
       }
 
-      .status-unknown td {
-        background: #f2f2f2;
+      .warn-box {
+        background: #fff8e1;
+        border: 1px solid #f0c040;
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-bottom: 16px;
+        font-size: 12px;
+        line-height: 1.5;
+        color: #5a4000;
       }
 
-      .status-wrong_case td {
-        background: #e7f1ff;
+      /* How to use import panel */
+      .steps {
+        background: #f0f6ff;
+        border: 1px solid #c0d8ff;
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-bottom: 14px;
+        font-size: 12px;
+        line-height: 1.8;
+        color: #1a3a6e;
+      }
+      .steps ol {
+        margin: 0;
+        padding-left: 18px;
+      }
+      .steps code {
+        background: #ddeeff;
+        border-radius: 3px;
+        padding: 1px 6px;
+        font-family: monospace;
+        font-size: 12px;
+        color: #003388;
+      }
+      textarea {
+        width: 100%;
+        font-size: 11px;
+        padding: 8px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: vertical;
+        font-family: monospace;
+      }
+      textarea:focus {
+        outline: none;
+        border-color: #0066ff;
+      }
+
+      /* Loading */
+      #panel-loading {
+        text-align: center;
+        padding: 40px 20px;
+      }
+      #panel-loading img {
+        width: 90%;
+        max-width: 800px;
+      }
+      #loadingProgress {
+        font-size: 13px;
+        color: #444;
+        margin-top: 10px;
       }
     </style>
   </head>
   <body>
-    <div id="app" class="app">
-      <h3 class="title">Component Props Inspector</h3>
 
+    <!-- IDLE: только инспект -->
+    <div id="panel-idle" class="panel active">
+      <h3>Component Props Inspector</h3>
+      <button id="inspectBtn" class="primary">Проверить компонент</button>
+    </div>
+
+    <!-- TABLE: таблица пропов + действия -->
+    <div id="panel-table" class="panel">
       <div class="actions">
-        <button id="inspectBtn">Проверить компонент</button>
+        <button id="inspectBtn2">Проверить компонент</button>
         <button id="copyJsonBtn">Скопировать JSON</button>
-        <button id="copyTableBtn">Скопировать таблицу</button>
         <button id="generateDocBtn">Документация по пропам</button>
-        <button id="generateFullDocBtn">Сгенерировать полную документацию</button>
-        <button id="getKeyBtn">Get key</button>
+        <button id="generateFullDocBtn" class="primary">Полная документация</button>
+        <button id="getKeyBtn" style="margin-left:auto; background:#eee;">Get key</button>
       </div>
-
-      <div id="meta" class="meta">Нажмите Inspect component</div>
-
+      <div id="meta" class="meta"></div>
       <div class="table-wrap">
         <div id="tableContainer" class="empty">Таблица пока не построена</div>
       </div>
-
-      <div id="status" class="status"></div>
     </div>
 
-    <div id="loading" style="
-      display:none;
-      text-align:center;
-      padding:40px 20px;
-    ">
-      <img
-        id="loadingGif"
-        src ="https://c.tenor.com/aW1paWTKpZMAAAAd/tenor.gif"; 
-        style="
-          width:90%;
-          max-width:800px;
-        "
-      />
-
-      <div style="
-        font-size:13px;
-        color:#444;
-      ">
-        <div id="loadingProgress">Подготовка...</div>
+    <!-- CONFIRM OVERWRITE: предупреждение о перезаписи -->
+    <div id="panel-confirm" class="panel">
+      <h3>Component Props Inspector</h3>
+      <div class="warn-box" id="confirmWarnText"></div>
+      <div class="prompt-box">
+        <p>Существующие фреймы будут удалены и созданы заново. Продолжить?</p>
+        <div class="btn-row">
+          <button id="confirmYesBtn" class="primary">Продолжить</button>
+          <button id="confirmNoBtn">Отмена</button>
+        </div>
       </div>
+    </div>
+
+    <!-- HOW-TO-USE PROMPT: предложение после генерации -->
+    <div id="panel-htu-prompt" class="panel">
+      <h3>Component Props Inspector</h3>
+      <div class="prompt-box">
+        <p>Полная документация сгенерирована.</p>
+        <p>Хотите сгенерировать раздел <strong>How to use</strong>?</p>
+        <div class="btn-row">
+          <button id="htuYesBtn" class="primary">Да</button>
+          <button id="htuNoBtn">Нет, вернуться к таблице</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HOW-TO-USE IMPORT: инструкция + вставка JSON -->
+    <div id="panel-htu-import" class="panel">
+      <h3>Component Props Inspector</h3>
+      <div class="steps">
+        <ol>
+          <li>JSON компонента скопирован в буфер обмена</li>
+          <li>Открой Claude Code в терминале</li>
+          <li>Запусти команду: <code>/generate-how-to-use</code></li>
+          <li>Дождись генерации — команда положит результат в буфер</li>
+          <li>Вернись сюда и вставь JSON ниже (Ctrl+V)</li>
+        </ol>
+      </div>
+      <textarea id="htuPasteArea" rows="6" placeholder="Вставь JSON из Claude Code (Ctrl+V)..."></textarea>
+      <div class="btn-row" style="display:flex; gap:8px; margin-top:8px;">
+        <button id="htuImportBtn" class="primary" style="flex:1;">Сгенерировать how to use</button>
+        <button id="htuCancelBtn" style="flex:1;">Отмена</button>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div id="panel-loading" class="panel">
+      <img src="https://c.tenor.com/aW1paWTKpZMAAAAd/tenor.gif" />
+      <div id="loadingProgress">Подготовка...</div>
     </div>
 
   </body>

@@ -10,7 +10,7 @@ function createSlotVisibilityProp(
       visibility: {
         designName: name,
         codeName: name,
-        type: "ReactNode",
+        type: "boolean",
         description: visibilityDescription,
         category: "visibility",
       },
@@ -25,13 +25,40 @@ function createSlotVisibilityProp(
   };
 }
 
+function createTextProp(
+  name: string,
+  visibilityDescription: string,
+  contentDescription: string
+) {
+  return {
+    designName: name,
+    codeName: name,
+    variants: {
+      visibility: {
+        designName: name,
+        codeName: name,
+        type: "boolean",
+        description: visibilityDescription,
+        category: "visibility",
+      },
+      content: {
+        designName: `✏️ ${name}`,
+        codeName: name,
+        type: "string",
+        description: contentDescription,
+        category: "content",
+      },
+    },
+  };
+}
+
 export const propsDictionary = {
   variant: {
     designName: "variant",
     codeName: "variant",
     type: "enum",
     description:
-      "Определяет функциональное поведение компонента, предлагая предустановленные варианты отображения и логики",
+      "Функциональный тип компонента, определяющий одновременно визуальное оформление и семантическую роль в интерфейсе",
     category: "component",
   },
 
@@ -40,7 +67,7 @@ export const propsDictionary = {
     codeName: "mode",
     type: "enum",
     description:
-      "Определяет режим отображения компонента, задавая его визуальное состояние",
+      "Режим отображения, определяющий визуальный стиль компонента. Менее семантичен чем variant — описывает «как», а не «зачем»",
     category: "component",
   },
 
@@ -48,7 +75,8 @@ export const propsDictionary = {
     designName: "size",
     codeName: "size",
     type: "enum",
-    description: "Размер компонента",
+    description:
+      "Размер компонента, влияющий на высоту, размер шрифта и внутренние отступы",
     category: "component",
   },
 
@@ -56,7 +84,8 @@ export const propsDictionary = {
     designName: "padding",
     codeName: "padding",
     type: "enum",
-    description: "Внутренние отступы компонента",
+    description:
+      "Внутренние отступы компонента, независимые от size. Используется когда нужно изменить плотность без смены габаритов",
     category: "component",
   },
 
@@ -64,7 +93,8 @@ export const propsDictionary = {
     designName: "orientation",
     codeName: "orientation",
     type: "enum",
-    description: "Ориентация компонента",
+    description:
+      "Направление основной оси компонента. Определяет, как расположены дочерние элементы внутри него",
     category: "component",
   },
 
@@ -72,7 +102,8 @@ export const propsDictionary = {
     designName: "state",
     codeName: "state",
     type: "enum",
-    description: "Состояние компонента",
+    description:
+      "Визуальный интерактивный статус компонента в дизайне: enabled/default, hover, active, focus. Состояния disabled, loading и readonly вынесены в отдельные булевые пропы",
     category: "component",
   },
 
@@ -80,7 +111,8 @@ export const propsDictionary = {
     designName: "loading",
     codeName: "loading",
     type: "boolean",
-    description: "Состояние загрузки",
+    description:
+      "Компонент находится в процессе загрузки — взаимодействие заблокировано, отображается индикатор прогресса",
     category: "component",
   },
 
@@ -88,7 +120,8 @@ export const propsDictionary = {
     designName: "disabled",
     codeName: "disabled",
     type: "boolean",
-    description: "Недоступное состояние",
+    description:
+      "Компонент недоступен для взаимодействия, визуально приглушён. Скринридеры объявляют элемент как unavailable",
     category: "component",
   },
 
@@ -96,7 +129,8 @@ export const propsDictionary = {
     designName: "readonly",
     codeName: "readonly",
     type: "boolean",
-    description: "Доступен только для чтения",
+    description:
+      "Значение доступно для просмотра, но не для редактирования. В отличие от disabled, элемент остаётся в фокусе и читается скринридерами",
     category: "component",
   },
 
@@ -104,7 +138,8 @@ export const propsDictionary = {
     designName: "validationStatus",
     codeName: "validationStatus",
     type: "enum",
-    description: "Статус валидации компонента",
+    description:
+      "Визуально отражает результат валидации через изменение цвета компонента и иконки состояния",
     category: "component",
   },
 
@@ -112,7 +147,8 @@ export const propsDictionary = {
     designName: "interactive",
     codeName: "interactive",
     type: "boolean",
-    description: "Включает/выключает интерактивный режим элемента",
+    description:
+      "Делает изначально статичный элемент интерактивным: добавляет hover, focus и active состояния",
     category: "component",
   },
 
@@ -120,41 +156,43 @@ export const propsDictionary = {
     designName: "selected",
     codeName: "selected",
     type: "boolean",
-    description: "Компонент выбран/не выбран",
+    description:
+      "Компонент находится в выбранном состоянии. Применяется как в группах элементов, так и для одиночных интерактивных компонентов",
     category: "component",
   },
 
-  title: {
-    designName: "✏️ title",
-    codeName: "title",
-    type: "string",
-    description: "Заголовок",
-    category: "content",
+  expanded: {
+    designName: "expanded",
+    codeName: "expanded",
+    type: "boolean",
+    description:
+      "Компонент развёрнут. Управляет раскрытым/свёрнутым состоянием disclosure-элементов",
+    category: "component",
   },
 
-  text: {
-    designName: "✏️ text",
-    codeName: "text",
-    type: "string",
-    description: "Текстовый контент",
-    category: "content",
-  },
+  title: createTextProp(
+    "title",
+    "Отображение заголовка компонента",
+    "Заголовок компонента"
+  ),
 
-  description: {
-    designName: "✏️ description",
-    codeName: "description",
-    type: "string",
-    description: "Дополнительный текст",
-    category: "content",
-  },
+  text: createTextProp(
+    "text",
+    "Отображение основного текстового контента",
+    "Основной текстовый контент компонента"
+  ),
 
-  value: {
-    designName: "value",
-    codeName: "value",
-    type: "string",
-    description: "Значение компонента",
-    category: "content",
-  },
+  description: createTextProp(
+    "description",
+    "Отображение вспомогательного текста",
+    "Вспомогательный текст, дополняющий основной контент"
+  ),
+
+  value: createTextProp(
+    "value",
+    "Отображение текущего значения компонента",
+    "Текущее значение компонента"
+  ),
 
   children: createSlotVisibilityProp(
     "children",
@@ -268,7 +306,7 @@ export const propsDictionary = {
     designName: "image",
     codeName: "image",
     type: "boolean",
-    description: "Отображение изображения/иллюстрации",
+    description: "Показывает или скрывает изображение / иллюстрацию внутри компонента",
     category: "visibility",
   },
 
@@ -276,23 +314,25 @@ export const propsDictionary = {
     designName: "action(s)",
     codeName: "actions",
     type: "boolean",
-    description: "Управляет отображением дополнительных действий",
+    description: "Показывает или скрывает блок дополнительных действий (кнопки, меню и т.д.)",
     category: "visibility",
   },
 
   notification: {
     designName: "notification",
     codeName: "notification",
-    type: "string",
-    description: "Отображение уведомления внутри компонента",
-    category: "component",
+    type: "boolean",
+    description:
+      "Показывает или скрывает вложенный компонент уведомления. В коде передаётся ReactNode с нужным вариантом уведомления",
+    category: "visibility",
   },
 
   draggable: {
     designName: "draggable",
     codeName: "draggable",
     type: "boolean",
-    description: "Включает возможность перетаскивания элемента",
+    description:
+      "Активирует возможность перетаскивания: отображает ручку drag-and-drop",
     category: "component",
   },
 
@@ -300,7 +340,8 @@ export const propsDictionary = {
     designName: "resizable",
     codeName: "resizable",
     type: "boolean",
-    description: "Включает возможность изменения размера компонента",
+    description:
+      "Показывает элементы управления для ручного изменения размеров компонента",
     category: "component",
   },
 
@@ -308,7 +349,8 @@ export const propsDictionary = {
     designName: "closable",
     codeName: "closable",
     type: "boolean",
-    description: "Включает возможность закрытия элемента",
+    description:
+      "Добавляет кнопку закрытия/удаления компонента",
     category: "component",
   },
 
@@ -316,7 +358,8 @@ export const propsDictionary = {
     designName: "placeholder",
     codeName: "placeholder",
     type: "boolean",
-    description: "Отображает placeholder или заполненное поле",
+    description:
+      "Переключает между пустым (placeholder) и заполненным состоянием. В коде placeholder — строка с подсказывающим текстом",
     category: "component",
   },
 
@@ -324,7 +367,8 @@ export const propsDictionary = {
     designName: "truncateText",
     codeName: "truncateText",
     type: "boolean",
-    description: "Обрезка текста при превышении ширины",
+    description:
+      "Обрезает переполняющий текст многоточием вместо переноса на новую строку",
     category: "dev",
   },
 } as const;
