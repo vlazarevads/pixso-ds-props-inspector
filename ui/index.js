@@ -1,5 +1,5 @@
 // ─── State machine ───────────────────────────────────────────────────────────
-const PANELS = ['idle', 'table', 'confirm', 'htu-prompt', 'htu-import', 'loading'];
+const PANELS = ['idle', 'table', 'tech-components', 'confirm', 'htu-prompt', 'htu-import', 'loading'];
 
 function showPanel(name) {
   PANELS.forEach(p => {
@@ -22,6 +22,9 @@ const getKeyBtn        = document.getElementById('getKeyBtn');
 const confirmYesBtn    = document.getElementById('confirmYesBtn');
 const confirmNoBtn     = document.getElementById('confirmNoBtn');
 const confirmWarnText  = document.getElementById('confirmWarnText');
+const techProceedBtn   = document.getElementById('techProceedBtn');
+const techSkipBtn      = document.getElementById('techSkipBtn');
+const techCompList     = document.getElementById('techCompList');
 const htuYesBtn        = document.getElementById('htuYesBtn');
 const htuNoBtn         = document.getElementById('htuNoBtn');
 const htuPasteArea     = document.getElementById('htuPasteArea');
@@ -79,15 +82,40 @@ generateDocBtn.onclick = () => {
 };
 
 generateFullDocBtn.onclick = () => {
-  // Сначала проверяем существующие фреймы
-  parent.postMessage({ pluginMessage: { type: 'check-frames' } }, '*');
+  // Сначала ищем вложенные компоненты
+  parent.postMessage({ pluginMessage: { type: 'find-tech-components' } }, '*');
+};
+
+// ─── Tech components ──────────────────────────────────────────────────────────
+let pendingTechIds = [];
+
+function buildTechList(items) {
+  if (!items.length) return '<div class="empty">Вложенные компоненты не найдены</div>';
+  return items.map(item => `
+    <label class="tech-item">
+      <input type="checkbox" value="${esc(item.id)}" ${item.isTechnical ? 'checked' : ''}>
+      <span class="tech-name">${esc(item.name)}</span>
+      ${item.isTechnical ? '<span class="tech-badge">технический</span>' : ''}
+    </label>
+  `).join('');
+}
+
+techProceedBtn.onclick = () => {
+  const checked = Array.from(techCompList.querySelectorAll('input[type="checkbox"]:checked'));
+  pendingTechIds = checked.map(cb => cb.value);
+  parent.postMessage({ pluginMessage: { type: 'check-frames', selectedTechIds: pendingTechIds } }, '*');
+};
+
+techSkipBtn.onclick = () => {
+  pendingTechIds = [];
+  parent.postMessage({ pluginMessage: { type: 'check-frames', selectedTechIds: [] } }, '*');
 };
 
 // ─── Confirm overwrite ────────────────────────────────────────────────────────
 confirmYesBtn.onclick = () => {
   pendingAction = 'full-doc';
   showPanel('loading');
-  parent.postMessage({ pluginMessage: { type: 'generate-full-documentation' } }, '*');
+  parent.postMessage({ pluginMessage: { type: 'generate-full-documentation', selectedTechIds: pendingTechIds } }, '*');
 };
 
 confirmNoBtn.onclick = () => showPanel('table');
@@ -149,7 +177,20 @@ window.onmessage = (event) => {
     return;
   }
 
+  if (msg.type === 'tech-components-result') {
+    if (msg.items && msg.items.length > 0) {
+      techCompList.innerHTML = buildTechList(msg.items);
+      showPanel('tech-components');
+    } else {
+      // Вложенных компонентов нет — сразу проверяем фреймы
+      pendingTechIds = [];
+      parent.postMessage({ pluginMessage: { type: 'check-frames', selectedTechIds: [] } }, '*');
+    }
+    return;
+  }
+
   if (msg.type === 'frames-check-result') {
+    if (msg.selectedTechIds) pendingTechIds = msg.selectedTechIds;
     if (msg.existing && msg.existing.length > 0) {
       confirmWarnText.innerHTML =
         '<strong>Уже существуют фреймы:</strong><br>' +
@@ -159,7 +200,7 @@ window.onmessage = (event) => {
       // Фреймов нет — генерируем сразу
       pendingAction = 'full-doc';
       showPanel('loading');
-      parent.postMessage({ pluginMessage: { type: 'generate-full-documentation' } }, '*');
+      parent.postMessage({ pluginMessage: { type: 'generate-full-documentation', selectedTechIds: pendingTechIds } }, '*');
     }
     return;
   }

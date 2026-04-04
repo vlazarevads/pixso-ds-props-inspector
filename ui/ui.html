@@ -175,6 +175,27 @@
         border-color: #0066ff;
       }
 
+      /* Tech components list */
+      .tech-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        cursor: pointer;
+      }
+      .tech-item:hover { background: #f5f5f5; }
+      .tech-item input[type="checkbox"] { cursor: pointer; margin: 0; }
+      .tech-item .tech-name { flex: 1; }
+      .tech-item .tech-badge {
+        font-size: 10px;
+        background: #e8f0fe;
+        color: #1a56db;
+        border-radius: 4px;
+        padding: 1px 6px;
+      }
+
       /* Loading */
       #panel-loading {
         text-align: center;
@@ -211,6 +232,17 @@
       <div id="meta" class="meta"></div>
       <div class="table-wrap">
         <div id="tableContainer" class="empty">Таблица пока не построена</div>
+      </div>
+    </div>
+
+    <!-- TECH COMPONENTS: выбор технических компонентов -->
+    <div id="panel-tech-components" class="panel">
+      <h3>Component Props Inspector</h3>
+      <p style="margin:0 0 10px; font-size:12px; color:#444;">Внутри компонента найдены вложенные компоненты. Выбери те, для которых нужно сгенерировать документацию:</p>
+      <div id="techCompList" style="max-height:240px; overflow:auto; margin-bottom:14px;"></div>
+      <div class="btn-row" style="display:flex; gap:8px;">
+        <button id="techProceedBtn" class="primary" style="flex:1;">Продолжить</button>
+        <button id="techSkipBtn" style="flex:1;">Пропустить</button>
       </div>
     </div>
 

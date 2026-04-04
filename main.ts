@@ -1,4 +1,5 @@
 import { propsDictionary } from "./data/propsDictionary";
+import { techComponentsExclusions } from "./data/techComponentsExclusions";
 
 pixso.showUI(__html__, { width: 720, height: 560 });
 
@@ -270,6 +271,34 @@ function getPropSortWeight(prop: NormalizedProp): number {
   return 99;
 }
 
+function inspectNode(node: any): InspectResult {
+  const propDefinitions = node.componentPropertyDefinitions || {};
+
+  const props = Object.entries(propDefinitions)
+    .map(([name, data]) => normalizeProp(name, data))
+    .sort((a, b) => {
+      const aIndex = a.dictionaryIndex ?? Number.MAX_SAFE_INTEGER;
+      const bIndex = b.dictionaryIndex ?? Number.MAX_SAFE_INTEGER;
+      return aIndex - bIndex;
+    });
+
+  const validation = {
+    total: props.length,
+    ok: props.filter((p) => p.status === "OK").length,
+    review: props.filter((p) => p.status === "REVIEW").length,
+    wrongCase: props.filter((p) => p.status === "WRONG_CASE").length,
+    unknown: props.filter((p) => p.status === "UNKNOWN").length,
+  };
+
+  return {
+    component: node.name || null,
+    type: node.type || null,
+    description: node.description || "",
+    props,
+    validation,
+  };
+}
+
 function inspectSelectedNode() {
   const selection = pixso.currentPage.selection;
 
@@ -284,33 +313,9 @@ function inspectSelectedNode() {
 
   const node = selection[0] as any;
   lastInspectedNode = node;
-  const propDefinitions = node.componentPropertyDefinitions || {};
+  lastInspectResult = inspectNode(node);
 
-  const props = Object.entries(propDefinitions)
-  .map(([name, data]) => normalizeProp(name, data))
-  .sort((a, b) => {
-    const aIndex = a.dictionaryIndex ?? Number.MAX_SAFE_INTEGER;
-    const bIndex = b.dictionaryIndex ?? Number.MAX_SAFE_INTEGER;
-    return aIndex - bIndex;
-  });
-
-  const validation = {
-    total: props.length,
-    ok: props.filter((p) => p.status === "OK").length,
-    review: props.filter((p) => p.status === "REVIEW").length,
-    wrongCase: props.filter((p) => p.status === "WRONG_CASE").length,
-    unknown: props.filter((p) => p.status === "UNKNOWN").length,
-  };
-
-  lastInspectResult = {
-    component: node.name || null,
-    type: node.type || null,
-    description: node.description || "",
-    props,
-    validation,
-  };
-
-  defaultPropsCache = props.reduce((acc, p) => {
+  defaultPropsCache = lastInspectResult.props.reduce((acc, p) => {
     acc[p.pixsoName] = p.defaultValue;
     return acc;
   }, {} as Record<string, any>);
@@ -1369,7 +1374,7 @@ async function generateDocumentation(silent = false) {
       }
 }
 
-async function generateFullDocumentation() {
+async function generateFullDocumentation(selectedTechIds: string[] = []) {
   try {
     if (!lastInspectResult) {
       pixso.notify("Сначала нажми Inspect component");
@@ -1391,7 +1396,39 @@ async function generateFullDocumentation() {
     // 1. Docs по пропам (без generation-finished — его шлёт generateFullDocumentation)
     await generateDocumentation(true);
 
-    // 2. How to use
+    // 2. Технические компоненты
+    const techDocFrames: any[] = [];
+    for (const techId of selectedTechIds) {
+      const techNode = pixso.getNodeById(techId) as any;
+      if (!techNode) continue;
+
+      // Сохраняем текущий контекст
+      const savedNode = lastInspectedNode;
+      const savedResult = lastInspectResult;
+
+      // Инспектируем технический компонент
+      lastInspectedNode = techNode;
+      lastInspectResult = inspectNode(techNode);
+      defaultPropsCache = lastInspectResult.props.reduce((acc, p) => {
+        acc[p.pixsoName] = p.defaultValue;
+        return acc;
+      }, {} as Record<string, any>);
+
+      const techName = techNode.name || techId;
+      removeFrameByName(`Doc / ${techName}`);
+      await generateDocumentation(true);
+
+      const techFrame = pixso.currentPage.children.find(
+        (n: any) => n.name === `Doc / ${techName}`
+      ) as any;
+      if (techFrame) techDocFrames.push(techFrame);
+
+      // Восстанавливаем контекст
+      lastInspectedNode = savedNode;
+      lastInspectResult = savedResult;
+    }
+
+    // 3. How to use
     removeFrameByName(`How to use / ${componentName}`);
     const howToUseFrame = pixso.createFrame();
     howToUseFrame.name = `How to use / ${componentName}`;
@@ -1508,13 +1545,20 @@ async function generateFullDocumentation() {
       propsDocFrame.y = baseY;
     }
 
-    howToUseFrame.x = baseX + frameWidth + gap;
+    // Tech doc фреймы после основного Doc
+    techDocFrames.forEach((f, i) => {
+      f.x = baseX + (frameWidth + gap) * (i + 1);
+      f.y = baseY;
+    });
+
+    const techOffset = techDocFrames.length + 1;
+    howToUseFrame.x = baseX + (frameWidth + gap) * techOffset;
     howToUseFrame.y = baseY;
 
-    darkModeFrame.x = baseX + (frameWidth + gap) * 2;
+    darkModeFrame.x = baseX + (frameWidth + gap) * (techOffset + 1);
     darkModeFrame.y = baseY;
 
-    const frames = [propsDocFrame, howToUseFrame, darkModeFrame].filter(Boolean);
+    const frames = [propsDocFrame, ...techDocFrames, howToUseFrame, darkModeFrame].filter(Boolean);
     if ("selection" in pixso.currentPage) {
       pixso.currentPage.selection = frames;
     }
@@ -1749,23 +1793,108 @@ async function importHowToUse(data: HowToUseData) {
   }
 }
 
+type TechComponentItem = {
+  id: string;
+  name: string;
+  isTechnical: boolean;
+};
+
+function findNestedComponents(rootNode: any): TechComponentItem[] {
+  const seen = new Set<string>();
+  const result: TechComponentItem[] = [];
+
+  function traverse(node: any) {
+    if (!node) return;
+    // Если это инстанс — извлекаем его component set
+    if (node.type === "INSTANCE") {
+      const main = node.mainComponent;
+      if (main) {
+        const compSet = main.parent?.type === "COMPONENT_SET" ? main.parent : main;
+        const id = compSet.id;
+        const name: string = compSet.name || "";
+
+        if (!seen.has(id)) {
+          seen.add(id);
+
+          // Проверяем список исключений (точное совпадение или startsWith без учёта регистра)
+          const nameLower = name.toLowerCase();
+          const excluded = techComponentsExclusions.some(exc =>
+            nameLower === exc.toLowerCase() || nameLower.startsWith(exc.toLowerCase())
+          );
+
+          if (!excluded) {
+            result.push({
+              id,
+              name,
+              isTechnical: name.startsWith("_"),
+            });
+          }
+        }
+      }
+    }
+    // Рекурсивно обходим дочерние ноды
+    if (node.children && Array.isArray(node.children)) {
+      for (const child of node.children) {
+        traverse(child);
+      }
+    }
+  }
+
+  // Для COMPONENT_SET обходим все варианты
+  if (rootNode.type === "COMPONENT_SET") {
+    for (const variant of rootNode.children || []) {
+      traverse(variant);
+    }
+  } else {
+    traverse(rootNode);
+  }
+
+  // Технические компоненты первыми, остальные по алфавиту
+  result.sort((a, b) => {
+    if (a.isTechnical && !b.isTechnical) return -1;
+    if (!a.isTechnical && b.isTechnical) return 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  return result;
+}
+
 pixso.ui.onmessage = async (msg) => {
   if (msg.type === "inspect") {
     inspectSelectedNode();
     return;
   }
 
+  if (msg.type === "find-tech-components") {
+    if (!lastInspectedNode) {
+      pixso.ui.postMessage({ type: "tech-components-result", items: [] });
+      return;
+    }
+    const items = findNestedComponents(lastInspectedNode);
+    pixso.ui.postMessage({ type: "tech-components-result", items });
+    return;
+  }
+
   if (msg.type === "check-frames") {
     const componentName = lastInspectResult?.component || "";
+    const techIds: string[] = msg.selectedTechIds || [];
+    const techNames = techIds
+      .map(id => {
+        const node = pixso.getNodeById(id) as any;
+        return node ? node.name : null;
+      })
+      .filter(Boolean);
+
     const frameNames = [
       `Doc / ${componentName}`,
+      ...techNames.map((n: string) => `Doc / ${n}`),
       `How to use / ${componentName}`,
       `Dark mode / ${componentName}`,
     ];
     const existing = frameNames.filter(name =>
       pixso.currentPage.children.some((n: any) => n.name === name)
     );
-    pixso.ui.postMessage({ type: "frames-check-result", existing });
+    pixso.ui.postMessage({ type: "frames-check-result", existing, selectedTechIds: techIds });
     return;
   }
 
@@ -1785,7 +1914,7 @@ pixso.ui.onmessage = async (msg) => {
   }
 
   if (msg.type === "generate-full-documentation") {
-    await generateFullDocumentation();
+    await generateFullDocumentation(msg.selectedTechIds || []);
     return;
   }
 
