@@ -900,9 +900,9 @@ async function createStatusNav(componentName: string): Promise<any | null> {
 
   // Меняем pageTitle: первая буква заглавная
   const capitalizedName = componentName.charAt(0).toUpperCase() + componentName.slice(1);
-  const titleNode = nav.findOne?.((n: any) => n.name === "pageTitle" && n.type === "TEXT") as any;
-  if (titleNode && typeof titleNode.characters !== "undefined") {
-    await pixso.loadFontAsync(titleNode.fontName);
+  const titleNode = findNodeByName(nav, "pageTitle") as any;
+  if (titleNode && titleNode.type === "TEXT") {
+    await loadTextNodeFontSafe(titleNode);
     titleNode.characters = capitalizedName;
   }
 
