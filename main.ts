@@ -1207,10 +1207,7 @@ function removeFrameByName(name: string) {
 async function generateDocumentation(silent = false) {
   const startedAt = Date.now();
   try {
-    if (!lastInspectResult) {
-      pixso.notify("Сначала нажми Inspect component");
-      return;
-    }
+    if (!lastInspectResult) return;
 
     const KEYS = {
       contentBlock: "1b89b827e1c21ed50d3ff95fbef5c616836d9026",
@@ -1219,10 +1216,7 @@ async function generateDocumentation(silent = false) {
     };
 
     const templateComponent = await pixso.importComponentByKeyAsync(KEYS.contentBlock);
-    if (!templateComponent) {
-      pixso.notify('Не удалось загрузить шаблон из библиотеки');
-      return;
-    }
+    if (!templateComponent) return;
     const template = templateComponent;
 
     removeFrameByName(`Doc / ${lastInspectResult.component || "Component"}`);
@@ -1309,10 +1303,7 @@ async function generateDocumentation(silent = false) {
 
     let createdCount = 0;
 
-    if (typeof template.createInstance !== "function") {
-      pixso.notify('У шаблона "doc content block" нет createInstance()');
-      return;
-    }
+    if (typeof template.createInstance !== "function") return;
 
     const purposeInstance = template.createInstance();
     const purposeBlock =
@@ -1376,10 +1367,7 @@ async function generateDocumentation(silent = false) {
 
 async function generateFullDocumentation(selectedTechIds: string[] = []) {
   try {
-    if (!lastInspectResult) {
-      pixso.notify("Сначала нажми Inspect component");
-      return;
-    }
+    if (!lastInspectResult) return;
 
     const componentName = lastInspectResult.component || "Component";
 
@@ -1388,10 +1376,7 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
     };
 
     const templateComponent = await pixso.importComponentByKeyAsync(KEYS.contentBlock);
-    if (!templateComponent) {
-      pixso.notify("Не удалось загрузить шаблон");
-      return;
-    }
+    if (!templateComponent) return;
 
     // 1. Docs по пропам (без generation-finished — его шлёт generateFullDocumentation)
     await generateDocumentation(true);
@@ -1654,10 +1639,7 @@ async function fillHowToUseBlock(block: any, section: HowToUseSection) {
 
 async function importHowToUse(data: HowToUseData) {
   try {
-    if (!data?.sections?.length) {
-      pixso.notify("JSON не содержит секций");
-      return;
-    }
+    if (!data?.sections?.length) return;
 
     const componentName = data.component || lastInspectResult?.component || "Component";
     const frameName = `How to use / ${componentName}`;
@@ -1666,20 +1648,15 @@ async function importHowToUse(data: HowToUseData) {
       (n: any) => n.name === frameName && n.type === "FRAME"
     ) ?? null;
 
-    if (!existingFrame) {
-      pixso.notify(`Фрейм "${frameName}" не найден. Сначала запусти "Сгенерировать полную документацию"`);
-      return;
-    }
+    if (!existingFrame) return;
 
     // Если lastInspectedNode сброшен (перезагрузка плагина) — попробуем найти компонент по выделению или по странице
     if (!lastInspectedNode) {
       const sel = pixso.currentPage.selection[0] as any;
       if (sel && (sel.type === "COMPONENT_SET" || sel.type === "COMPONENT")) {
         lastInspectedNode = sel;
-        defaultPropsCache = null; // пересчитаем при необходимости
-        pixso.notify("Использую выделенный компонент для демо");
+        defaultPropsCache = null;
       } else {
-        // Ищем COMPONENT_SET с именем компонента на странице
         const found = pixso.currentPage.children.find(
           (n: any) => (n.type === "COMPONENT_SET" || n.type === "COMPONENT") &&
             n.name.toLowerCase() === componentName.toLowerCase()
@@ -1687,9 +1664,6 @@ async function importHowToUse(data: HowToUseData) {
         if (found) {
           lastInspectedNode = found;
           defaultPropsCache = null;
-          pixso.notify(`Нашёл компонент "${found.name}" на странице`);
-        } else {
-          pixso.notify("Демо не создать: выдели компонент и нажми «Проверить компонент»");
         }
       }
     }
@@ -1697,16 +1671,10 @@ async function importHowToUse(data: HowToUseData) {
     const CONTENT_BLOCK_KEY = "1b89b827e1c21ed50d3ff95fbef5c616836d9026";
     const template = await pixso.importComponentByKeyAsync(CONTENT_BLOCK_KEY);
 
-    if (!template || typeof template.createInstance !== "function") {
-      pixso.notify("Не удалось загрузить шаблон content block");
-      return;
-    }
+    if (!template || typeof template.createInstance !== "function") return;
 
     const bodyFrame = findNodeByName(existingFrame, "bodyFrame");
-    if (!bodyFrame) {
-      pixso.notify('Не найден "bodyFrame" внутри How to use фрейма');
-      return;
-    }
+    if (!bodyFrame) return;
 
     // Remove placeholder block left by generateFullDocumentation
     const placeholder = findNodeByName(bodyFrame, "doc content block");
@@ -1736,7 +1704,7 @@ async function importHowToUse(data: HowToUseData) {
         step = "fillHowToUseBlock";
         await fillHowToUseBlock(block, section);
       } catch (blockErr) {
-        pixso.notify(`Блок ${i + 1} упал на шаге "${step}": ${String(blockErr)}`);
+        console.error(`Блок ${i + 1} упал на шаге "${step}":`, blockErr);
         return;
       }
     }
@@ -1766,7 +1734,7 @@ async function importHowToUse(data: HowToUseData) {
           step = "fillHowToUseBlock idea";
           await fillHowToUseBlock(block, idea);
         } catch (ideaErr) {
-          pixso.notify(`Идея ${i + 1} упала на шаге "${step}": ${String(ideaErr)}`);
+          console.error(`Идея ${i + 1} упала на шаге "${step}":`, ideaErr);
         }
       }
     }
@@ -1819,10 +1787,13 @@ function findNestedComponents(rootNode: any): TechComponentItem[] {
           // Проверяем список исключений (точное совпадение или startsWith без учёта регистра)
           const nameLower = name.toLowerCase();
           const excluded = techComponentsExclusions.some(exc =>
-            nameLower === exc.toLowerCase() || nameLower.startsWith(exc.toLowerCase())
+            nameLower === exc.toLowerCase()
           );
 
-          if (!excluded) {
+          // Исключаем компоненты, имя которых начинается с цифры
+          const startsWithDigit = /^\d/.test(name);
+
+          if (!excluded && !startsWithDigit) {
             result.push({
               id,
               name,
@@ -1885,12 +1856,15 @@ pixso.ui.onmessage = async (msg) => {
       })
       .filter(Boolean);
 
-    const frameNames = [
-      `Doc / ${componentName}`,
-      ...techNames.map((n: string) => `Doc / ${n}`),
-      `How to use / ${componentName}`,
-      `Dark mode / ${componentName}`,
-    ];
+    const frameNames = msg.mode === "props"
+      ? [`Doc / ${componentName}`]
+      : [
+          `Doc / ${componentName}`,
+          ...techNames.map((n: string) => `Doc / ${n}`),
+          `How to use / ${componentName}`,
+          `Dark mode / ${componentName}`,
+        ];
+
     const existing = frameNames.filter(name =>
       pixso.currentPage.children.some((n: any) => n.name === name)
     );

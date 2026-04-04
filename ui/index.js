@@ -16,13 +16,17 @@ let pendingAction = null; // 'full-doc' | 'how-to-use'
 const inspectBtn       = document.getElementById('inspectBtn');
 const inspectBtn2      = document.getElementById('inspectBtn2');
 const copyJsonBtn      = document.getElementById('copyJsonBtn');
-const generateDocBtn   = document.getElementById('generateDocBtn');
-const generateFullDocBtn = document.getElementById('generateFullDocBtn');
 const getKeyBtn        = document.getElementById('getKeyBtn');
+const genDropdownBtn   = document.getElementById('genDropdownBtn');
+const genDropdown      = document.getElementById('genDropdown');
+const genFullItem      = document.getElementById('genFullItem');
+const genPropsItem     = document.getElementById('genPropsItem');
+const genHtuItem       = document.getElementById('genHtuItem');
 const confirmYesBtn    = document.getElementById('confirmYesBtn');
 const confirmNoBtn     = document.getElementById('confirmNoBtn');
 const confirmWarnText  = document.getElementById('confirmWarnText');
 const techProceedBtn   = document.getElementById('techProceedBtn');
+const techCancelBtn    = document.getElementById('techCancelBtn');
 const techSkipBtn      = document.getElementById('techSkipBtn');
 const techCompList     = document.getElementById('techCompList');
 const htuYesBtn        = document.getElementById('htuYesBtn');
@@ -31,12 +35,6 @@ const htuPasteArea     = document.getElementById('htuPasteArea');
 const htuImportBtn     = document.getElementById('htuImportBtn');
 const htuCancelBtn     = document.getElementById('htuCancelBtn');
 
-// ─── Loading dots animation ───────────────────────────────────────────────────
-setInterval(() => {
-  const dots = document.getElementById('dots');
-  if (!dots) return;
-  dots.textContent = dots.textContent.length >= 3 ? '' : dots.textContent + '.';
-}, 400);
 
 // ─── Clipboard helpers ────────────────────────────────────────────────────────
 async function copyText(text) {
@@ -74,16 +72,38 @@ copyJsonBtn.onclick = async () => {
   if (!ok) alert('Не удалось скопировать JSON');
 };
 
-// ─── Docs ─────────────────────────────────────────────────────────────────────
-generateDocBtn.onclick = () => {
-  pendingAction = 'props-only';
-  showPanel('loading');
-  parent.postMessage({ pluginMessage: { type: 'generate-documentation' } }, '*');
+// ─── Generate dropdown ────────────────────────────────────────────────────────
+function toggleGenDropdown(force) {
+  const isOpen = genDropdown.classList.contains('open');
+  const open = force !== undefined ? force : !isOpen;
+  genDropdown.classList.toggle('open', open);
+  genDropdownBtn.classList.toggle('open', open);
+}
+
+genDropdownBtn.onclick = (e) => {
+  e.stopPropagation();
+  toggleGenDropdown();
 };
 
-generateFullDocBtn.onclick = () => {
-  // Сначала ищем вложенные компоненты
+document.addEventListener('click', () => toggleGenDropdown(false));
+genDropdown.addEventListener('click', (e) => e.stopPropagation());
+
+genFullItem.onclick = () => {
+  toggleGenDropdown(false);
   parent.postMessage({ pluginMessage: { type: 'find-tech-components' } }, '*');
+};
+
+genPropsItem.onclick = () => {
+  toggleGenDropdown(false);
+  pendingAction = 'props-only';
+  parent.postMessage({ pluginMessage: { type: 'check-frames', mode: 'props' } }, '*');
+};
+
+genHtuItem.onclick = () => {
+  toggleGenDropdown(false);
+  if (lastResult) copyText(JSON.stringify(lastResult, null, 2));
+  htuPasteArea.value = '';
+  showPanel('htu-import');
 };
 
 // ─── Tech components ──────────────────────────────────────────────────────────
@@ -106,6 +126,8 @@ techProceedBtn.onclick = () => {
   parent.postMessage({ pluginMessage: { type: 'check-frames', selectedTechIds: pendingTechIds } }, '*');
 };
 
+techCancelBtn.onclick = () => showPanel('table');
+
 techSkipBtn.onclick = () => {
   pendingTechIds = [];
   parent.postMessage({ pluginMessage: { type: 'check-frames', selectedTechIds: [] } }, '*');
@@ -113,9 +135,13 @@ techSkipBtn.onclick = () => {
 
 // ─── Confirm overwrite ────────────────────────────────────────────────────────
 confirmYesBtn.onclick = () => {
-  pendingAction = 'full-doc';
   showPanel('loading');
-  parent.postMessage({ pluginMessage: { type: 'generate-full-documentation', selectedTechIds: pendingTechIds } }, '*');
+  if (pendingAction === 'props-only') {
+    parent.postMessage({ pluginMessage: { type: 'generate-documentation' } }, '*');
+  } else {
+    pendingAction = 'full-doc';
+    parent.postMessage({ pluginMessage: { type: 'generate-full-documentation', selectedTechIds: pendingTechIds } }, '*');
+  }
 };
 
 confirmNoBtn.onclick = () => showPanel('table');
@@ -161,6 +187,7 @@ getKeyBtn.onclick = () => {
   parent.postMessage({ pluginMessage: { type: 'get-key' } }, '*');
 };
 
+
 // ─── Messages from main.ts ────────────────────────────────────────────────────
 window.onmessage = (event) => {
   const msg = event.data.pluginMessage;
@@ -193,14 +220,18 @@ window.onmessage = (event) => {
     if (msg.selectedTechIds) pendingTechIds = msg.selectedTechIds;
     if (msg.existing && msg.existing.length > 0) {
       confirmWarnText.innerHTML =
-        '<strong>Уже существуют фреймы:</strong><br>' +
         msg.existing.map(n => `• ${n}`).join('<br>');
       showPanel('confirm');
     } else {
       // Фреймов нет — генерируем сразу
-      pendingAction = 'full-doc';
-      showPanel('loading');
-      parent.postMessage({ pluginMessage: { type: 'generate-full-documentation', selectedTechIds: pendingTechIds } }, '*');
+      if (pendingAction === 'props-only') {
+        showPanel('loading');
+        parent.postMessage({ pluginMessage: { type: 'generate-documentation' } }, '*');
+      } else {
+        pendingAction = 'full-doc';
+        showPanel('loading');
+        parent.postMessage({ pluginMessage: { type: 'generate-full-documentation', selectedTechIds: pendingTechIds } }, '*');
+      }
     }
     return;
   }
@@ -209,7 +240,6 @@ window.onmessage = (event) => {
     if (pendingAction === 'full-doc') {
       showPanel('htu-prompt');
     } else {
-      // props-only или how-to-use — возвращаемся к таблице
       showPanel('table');
     }
     pendingAction = null;
@@ -228,18 +258,25 @@ window.onmessage = (event) => {
     const props = data.props || [];
     const validation = data.validation || {};
 
-    const metaEl = document.getElementById('meta');
-    if (metaEl) {
-      metaEl.innerHTML = `
-        <div><b>${data.component || '-'}</b> &nbsp;·&nbsp; ${data.type || ''} &nbsp;·&nbsp; ${data.description || ''}</div>
-        <div style="margin-top:4px;">
-          Всего: ${validation.total || 0} &nbsp;
-          OK: ${validation.ok || 0} &nbsp;
-          Review: ${validation.review || 0} &nbsp;
-          Unknown: ${validation.unknown || 0}
-        </div>
-      `;
-    }
+    // Заголовок компонента
+    const rawName = data.component || '—';
+    // Убираем префикс типа если есть (COMPONENT_SET., COMPONENT.)
+    const cleanName = rawName.replace(/^(COMPONENT_SET|COMPONENT)\./i, '');
+    // Версия — из описания если есть паттерн v0.0 или version
+    const versionMatch = (data.description || '').match(/v\d+[\.\d]*/i);
+    const version = versionMatch ? versionMatch[0] : '';
+
+    const nameEl = document.getElementById('componentName');
+    const versionEl = document.getElementById('componentVersion');
+    if (nameEl) nameEl.textContent = cleanName;
+    if (versionEl) versionEl.textContent = version;
+
+    // Статистика
+    document.getElementById('statTotal').textContent  = validation.total   || 0;
+    document.getElementById('statOk').textContent     = validation.ok      || 0;
+    document.getElementById('statReview').textContent = validation.review   || 0;
+    document.getElementById('statWrong').textContent  = validation.wrongCase || 0;
+    document.getElementById('statUnknown').textContent= validation.unknown  || 0;
 
     const tableContainer = document.getElementById('tableContainer');
     if (tableContainer) {

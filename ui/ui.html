@@ -15,67 +15,213 @@
       * { box-sizing: border-box; }
 
       body {
-        font-family: Arial, sans-serif;
+        font-family: "Kaspersky Sans Text", Arial, sans-serif;
         background: #fff;
-        color: #111;
+        color: #131416;
         font-size: 13px;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
       }
 
       .panel {
         display: none;
-        padding: 16px;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
       }
       .panel.active {
-        display: block;
-      }
-
-      h3 {
-        margin: 0 0 16px;
-        font-size: 16px;
-      }
-
-      .actions {
         display: flex;
-        gap: 6px;
-        margin-bottom: 12px;
+      }
+
+      .panel-content {
+        flex: 1;
+        overflow: auto;
+        padding: 16px;
+        min-height: 0;
+      }
+
+      .footer {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 16px;
+        border-top: 1px solid #EEEEF0;
+        flex-shrink: 0;
         flex-wrap: wrap;
       }
+      .footer .spacer { margin-left: auto; }
 
-      button {
-        padding: 7px 12px;
-        cursor: pointer;
-        border: 1px solid #ccc;
-        background: #f5f5f5;
-        border-radius: 4px;
-        font-size: 12px;
+      /* ── Loading panel ── */
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(19,20,22,0.15);
+        border-top-color: #131416;
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+        flex-shrink: 0;
       }
-      button:hover { background: #e8e8e8; }
-      button.primary {
-        background: #0066ff;
+      .loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0;
+      }
+      .loading-content img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+      .loading-progress {
+        position: absolute;
+        bottom: 16px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 13px;
         color: #fff;
-        border-color: #0055dd;
+        background: rgba(0,0,0,0.4);
+        padding: 4px 8px;
+        border-radius: 20px;
+        white-space: nowrap;
       }
-      button.primary:hover { background: #0055dd; }
+      #panel-loading .panel-content { position: relative; padding: 0; }
+      #panel-loading .footer button { opacity: 0.4; pointer-events: none; }
+
+      /* ── Generate dropdown ── */
+      .gen-wrap {
+        position: relative;
+      }
+      .gen-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .gen-btn svg {
+        transition: transform 120ms;
+        flex-shrink: 0;
+      }
+      .gen-btn.open svg { transform: rotate(180deg); }
+
+      .gen-dropdown {
+        display: none;
+        position: absolute;
+        bottom: calc(100% + 6px);
+        left: 0;
+        background: #fff;
+        border: 1px solid #DFE4EB;
+        border-radius: 8px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.10);
+        min-width: 180px;
+        overflow: hidden;
+        z-index: 100;
+      }
+      .gen-dropdown.open { display: block; }
+      .gen-dropdown-item {
+        padding: 8px 16px;
+        font-size: 13px;
+        cursor: pointer;
+        color: #131416;
+        white-space: nowrap;
+        transition: background 100ms;
+      }
+      .gen-dropdown-item:hover { background: #F5F6F7; }
+      .gen-dropdown-item + .gen-dropdown-item {
+        border-top: 1px solid #EEEEF0;
+      }
+
+      /* ── Buttons ── */
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        height: 32px;
+        padding: 0 16px;
+        cursor: pointer;
+        border: 1px solid #B8BDC7;
+        background: #fff;
+        border-radius: 8px;
+        font-size: 13px;
+        font-family: inherit;
+        font-weight: 400;
+        color: #131416;
+        transition: background 120ms, border-color 120ms;
+        white-space: nowrap;
+      }
+      button:hover { background: #F3F4F6; }
+      button:active { background: #EDEFF2; }
+      button:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px #6E98FD;
+      }
+
+      button.primary {
+        background: #4269E7;
+        color: #fff;
+        border-color: #4269E7;
+      }
+      button.primary:hover { background: #335EDD; border-color: #335EDD; }
+      button.primary:active { background: #2241B0; border-color: #2241B0; }
+
       button.danger {
         background: #fff;
-        color: #cc2200;
-        border-color: #cc2200;
+        color: #EA152A;
+        border-color: #EA152A;
       }
-      button.danger:hover { background: #fff0ee; }
+      button.danger:hover { background: #FFF0F0; }
+      button.danger:active { background: #FFE0E0; }
 
-      .meta {
+      /* ── Meta ── */
+      /* ── Component header ── */
+      .component-header {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+      .component-name {
+        font-size: 15px;
+        font-weight: 600;
+        color: #131416;
+      }
+      .component-version {
         font-size: 12px;
-        color: #555;
-        margin-bottom: 10px;
-        line-height: 1.5;
+        color: #9097A2;
+      }
+
+      /* ── Validation stats ── */
+      .validation-stats {
+        display: flex;
+        gap: 8px;
+        font-size: 12px;
+        color: #6D7585;
+        margin-top: 8px;
+        margin-bottom: 16px;
+      }
+      .stat { display: flex; gap: 4px; align-items: center; }
+      .stat-num { font-weight: 500; }
+      .stat-num.ok      { color: #131416; }
+      .stat-num.review  { color: #D48A09; }
+      .stat-num.unknown { color: #9097A2; }
+      .stat-num.wrong   { color: #4269E7; }
+
+      /* ── Table ── */
+      #panel-table .panel-content {
+        display: flex;
+        flex-direction: column;
+        padding-bottom: 0;
       }
 
       .table-wrap {
-        background: #f4f4f4;
-        border-radius: 8px;
-        padding: 8px;
-        max-height: 280px;
+        flex: 1;
+        min-height: 0;
         overflow: auto;
+        background: #fff;
       }
 
       table {
@@ -85,216 +231,347 @@
         background: #fff;
       }
       th, td {
-        border: 1px solid #ddd;
-        padding: 6px 8px;
+        border: 1px solid #DFE4EB;
+        padding: 4px 8px;
         vertical-align: top;
         text-align: left;
       }
       th {
-        background: #f0f0f0;
+        background: #EDEFF2;
+        color: #6D7585;
+        font-weight: 500;
+        font-size: 11px;
         position: sticky;
         top: 0;
         z-index: 1;
       }
       .empty {
         font-size: 12px;
-        color: #666;
-        padding: 12px;
+        color: #9097A2;
+        padding: 8px;
       }
-      .status-review td { background: #fff6dd; }
-      .status-unknown td { background: #f2f2f2; }
-      .status-wrong_case td { background: #e7f1ff; }
+      .status-review td    { background: #FEFAE8; }
+      .status-unknown td   { background: #F5F6F7; }
+      .status-wrong_case td { background: #EEF2FD; }
 
-      /* Prompt / confirm panels */
+      /* ── Prompt / confirm panels ── */
       .prompt-box {
-        background: #f8f8f8;
-        border: 1px solid #e0e0e0;
+        background: #F5F6F7;
+        border: 1px solid #DFE4EB;
         border-radius: 8px;
-        padding: 20px;
-        margin-top: 8px;
+        padding: 16px;
       }
       .prompt-box p {
-        margin: 0 0 12px;
+        margin: 0 0 8px;
         line-height: 1.5;
-        color: #333;
+        color: #131416;
+        font-size: 13px;
       }
-      .prompt-box .btn-row {
-        display: flex;
-        gap: 8px;
-        margin-top: 16px;
-      }
-      .prompt-box .btn-row button {
-        flex: 1;
-      }
+      .prompt-box p:last-child { margin-bottom: 0; }
 
       .warn-box {
-        background: #fff8e1;
-        border: 1px solid #f0c040;
+        background: #FFF0F0;
+        border: 1px solid #EA152A;
         border-radius: 8px;
-        padding: 14px 16px;
+        padding: 8px 16px;
         margin-bottom: 16px;
         font-size: 12px;
         line-height: 1.5;
-        color: #5a4000;
+        color: #131416;
       }
 
-      /* How to use import panel */
+      /* ── Steps (htu-import) ── */
       .steps {
-        background: #f0f6ff;
-        border: 1px solid #c0d8ff;
+        background: #EEF2FD;
+        border: 1px solid #B3C3F8;
         border-radius: 8px;
-        padding: 14px 16px;
-        margin-bottom: 14px;
+        padding: 8px 16px;
+        margin-bottom: 16px;
         font-size: 12px;
         line-height: 1.8;
-        color: #1a3a6e;
+        color: #2241B0;
       }
       .steps ol {
         margin: 0;
-        padding-left: 18px;
+        padding-left: 16px;
       }
       .steps code {
-        background: #ddeeff;
-        border-radius: 3px;
-        padding: 1px 6px;
-        font-family: monospace;
-        font-size: 12px;
-        color: #003388;
-      }
-      textarea {
-        width: 100%;
-        font-size: 11px;
-        padding: 8px;
-        border: 1px solid #ccc;
+        background: #C5D0F9;
         border-radius: 4px;
-        resize: vertical;
-        font-family: monospace;
-      }
-      textarea:focus {
-        outline: none;
-        border-color: #0066ff;
+        padding: 2px 4px;
+        font-family: "Kaspersky Sans Mono", monospace;
+        font-size: 12px;
+        color: #2241B0;
       }
 
-      /* Tech components list */
+      /* ── Textarea ── */
+      textarea {
+        width: 100%;
+        font-size: 12px;
+        padding: 8px;
+        border: 1px solid #B8BDC7;
+        border-radius: 8px;
+        resize: vertical;
+        font-family: "Kaspersky Sans Mono", monospace;
+        color: #131416;
+        background: #fff;
+        transition: border-color 120ms;
+      }
+      textarea:hover { border-color: #6E98FD; }
+      textarea:focus {
+        outline: none;
+        border-color: #6E98FD;
+        box-shadow: 0 0 0 2px #6E98FD33;
+      }
+
+      /* ── Tech components list ── */
       .tech-item {
         display: flex;
         align-items: center;
         gap: 8px;
-        padding: 7px 10px;
-        border-radius: 6px;
-        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 8px;
+        font-size: 13px;
         cursor: pointer;
+        color: #131416;
+        transition: background 120ms;
       }
-      .tech-item:hover { background: #f5f5f5; }
-      .tech-item input[type="checkbox"] { cursor: pointer; margin: 0; }
-      .tech-item .tech-name { flex: 1; }
-      .tech-item .tech-badge {
-        font-size: 10px;
-        background: #e8f0fe;
-        color: #1a56db;
+      .tech-item:hover { background: #F5F6F7; }
+
+      .tech-item input[type="checkbox"] {
+        appearance: none;
+        -webkit-appearance: none;
+        width: 16px;
+        height: 16px;
+        min-width: 16px;
+        border: 1px solid #B8BDC7;
         border-radius: 4px;
-        padding: 1px 6px;
+        background: #fff;
+        cursor: pointer;
+        position: relative;
+        transition: background 120ms, border-color 120ms;
+      }
+      .tech-item input[type="checkbox"]:checked {
+        background: #4269E7;
+        border-color: #4269E7;
+      }
+      .tech-item input[type="checkbox"]:checked::after {
+        content: '';
+        position: absolute;
+        left: 3px;
+        top: 1px;
+        width: 5px;
+        height: 8px;
+        border: 2px solid #fff;
+        border-top: none;
+        border-left: none;
+        transform: rotate(45deg);
+      }
+      .tech-item input[type="checkbox"]:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 2px #6E98FD;
       }
 
-      /* Loading */
-      #panel-loading {
+      .tech-item .tech-name { flex: 1; }
+      .tech-item .tech-badge {
+        font-size: 11px;
+        background: #EEF2FD;
+        color: #4269E7;
+        border-radius: 4px;
+        padding: 2px 4px;
+        font-weight: 500;
+      }
+
+      /* ── Panel descriptor ── */
+      .panel-descriptor {
+        margin: 8px 0 0;
+        font-size: 12px;
+        color: #6D7585;
+        line-height: 1.5;
+      }
+
+      /* ── Idle empty state ── */
+      .idle-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
         text-align: center;
-        padding: 40px 20px;
+        color: #9097A2;
       }
-      #panel-loading img {
-        width: 90%;
-        max-width: 800px;
+      .idle-title {
+        margin: 0;
+        font-size: 15px;
+        font-weight: 600;
+        color: #131416;
       }
-      #loadingProgress {
-        font-size: 13px;
-        color: #444;
-        margin-top: 10px;
+      .idle-hint {
+        margin: 0;
+        font-size: 12px;
+        color: #9097A2;
+        max-width: 240px;
+        line-height: 1.5;
       }
+
     </style>
   </head>
   <body>
 
-    <!-- IDLE: только инспект -->
+    <!-- IDLE -->
     <div id="panel-idle" class="panel active">
-      <h3>Component Props Inspector</h3>
-      <button id="inspectBtn" class="primary">Проверить компонент</button>
+      <div class="panel-content idle-empty">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="4" y="4" width="18" height="18" rx="3" stroke="#B8BDC7" stroke-width="2"/>
+          <rect x="26" y="4" width="18" height="18" rx="3" stroke="#B8BDC7" stroke-width="2"/>
+          <rect x="4" y="26" width="18" height="18" rx="3" stroke="#B8BDC7" stroke-width="2"/>
+          <rect x="26" y="26" width="18" height="18" rx="3" stroke="#4269E7" stroke-width="2"/>
+          <line x1="30" y1="35" x2="38" y2="35" stroke="#4269E7" stroke-width="2" stroke-linecap="round"/>
+          <line x1="30" y1="31" x2="36" y2="31" stroke="#4269E7" stroke-width="2" stroke-linecap="round"/>
+          <line x1="30" y1="39" x2="34" y2="39" stroke="#4269E7" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <p class="idle-title">Выбери компонент на холсте</p>
+        <p class="idle-hint">Нажми кнопку ниже чтобы проинспектировать его пропы</p>
+      </div>
+      <div class="footer">
+        <button id="inspectBtn">Проверить компонент</button>
+      </div>
     </div>
 
-    <!-- TABLE: таблица пропов + действия -->
+    <!-- TABLE -->
     <div id="panel-table" class="panel">
-      <div class="actions">
+      <div class="panel-content">
+        <div class="component-header">
+          <div id="componentName" class="component-name">—</div>
+          <div id="componentVersion" class="component-version"></div>
+        </div>
+        <div class="validation-stats">
+          <span class="stat">Всего: <span id="statTotal" class="stat-num">0</span></span>
+          <span class="stat">OK: <span id="statOk" class="stat-num ok">0</span></span>
+          <span class="stat">Review: <span id="statReview" class="stat-num review">0</span></span>
+          <span class="stat">Wrong case: <span id="statWrong" class="stat-num wrong">0</span></span>
+          <span class="stat">Unknown: <span id="statUnknown" class="stat-num unknown">0</span></span>
+        </div>
+        <div class="table-wrap">
+          <div id="tableContainer" class="empty">Таблица пока не построена</div>
+        </div>
+      </div>
+      <div class="footer">
         <button id="inspectBtn2">Проверить компонент</button>
+        <div class="gen-wrap">
+          <button id="genDropdownBtn" class="gen-btn">
+            Сгенерировать документацию
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M4 6l4 4 4-4" stroke="#131416" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+          <div id="genDropdown" class="gen-dropdown">
+            <div class="gen-dropdown-item" id="genHtuItem">How to use</div>
+            <div class="gen-dropdown-item" id="genPropsItem">По пропам</div>
+            <div class="gen-dropdown-item" id="genFullItem">Полная</div>
+          </div>
+        </div>
         <button id="copyJsonBtn">Скопировать JSON</button>
-        <button id="generateDocBtn">Документация по пропам</button>
-        <button id="generateFullDocBtn" class="primary">Полная документация</button>
-        <button id="getKeyBtn" style="margin-left:auto; background:#eee;">Get key</button>
-      </div>
-      <div id="meta" class="meta"></div>
-      <div class="table-wrap">
-        <div id="tableContainer" class="empty">Таблица пока не построена</div>
+        <div class="spacer"></div>
+        <button id="getKeyBtn">Get key</button>
       </div>
     </div>
 
-    <!-- TECH COMPONENTS: выбор технических компонентов -->
+    <!-- TECH COMPONENTS -->
     <div id="panel-tech-components" class="panel">
-      <h3>Component Props Inspector</h3>
-      <p style="margin:0 0 10px; font-size:12px; color:#444;">Внутри компонента найдены вложенные компоненты. Выбери те, для которых нужно сгенерировать документацию:</p>
-      <div id="techCompList" style="max-height:240px; overflow:auto; margin-bottom:14px;"></div>
-      <div class="btn-row" style="display:flex; gap:8px;">
-        <button id="techProceedBtn" class="primary" style="flex:1;">Продолжить</button>
-        <button id="techSkipBtn" style="flex:1;">Пропустить</button>
+      <div class="panel-content">
+        <div class="component-header">
+          <div class="component-name">Технические компоненты</div>
+        </div>
+        <p class="panel-descriptor">Компоненты с префиксом _ выбраны автоматически. Скорректируй список при необходимости</p>
+        <div id="techCompList" style="margin-top:16px"></div>
+      </div>
+      <div class="footer">
+        <button id="techProceedBtn" class="primary">Продолжить</button>
+        <button id="techCancelBtn">Отмена</button>
+        <div class="spacer"></div>
+        <button id="techSkipBtn">Пропустить</button>
       </div>
     </div>
 
-    <!-- CONFIRM OVERWRITE: предупреждение о перезаписи -->
+    <!-- CONFIRM OVERWRITE -->
     <div id="panel-confirm" class="panel">
-      <h3>Component Props Inspector</h3>
-      <div class="warn-box" id="confirmWarnText"></div>
-      <div class="prompt-box">
-        <p>Существующие фреймы будут удалены и созданы заново. Продолжить?</p>
-        <div class="btn-row">
-          <button id="confirmYesBtn" class="primary">Продолжить</button>
-          <button id="confirmNoBtn">Отмена</button>
+      <div class="panel-content">
+        <div class="component-header">
+          <div class="component-name">Уже существуют фреймы</div>
         </div>
+        <p class="panel-descriptor">Существующие фреймы будут удалены и созданы заново</p>
+        <div class="warn-box" id="confirmWarnText" style="margin-top:16px"></div>
+      </div>
+      <div class="footer">
+        <button id="confirmYesBtn" class="primary">Продолжить</button>
+        <button id="confirmNoBtn">Отмена</button>
       </div>
     </div>
 
-    <!-- HOW-TO-USE PROMPT: предложение после генерации -->
+    <!-- HOW-TO-USE PROMPT -->
     <div id="panel-htu-prompt" class="panel">
-      <h3>Component Props Inspector</h3>
-      <div class="prompt-box">
-        <p>Полная документация сгенерирована.</p>
-        <p>Хотите сгенерировать раздел <strong>How to use</strong>?</p>
-        <div class="btn-row">
-          <button id="htuYesBtn" class="primary">Да</button>
-          <button id="htuNoBtn">Нет, вернуться к таблице</button>
-        </div>
+      <div class="panel-content idle-empty">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="6" y="8" width="36" height="32" rx="4" stroke="#B8BDC7" stroke-width="2"/>
+          <line x1="14" y1="18" x2="34" y2="18" stroke="#B8BDC7" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="24" x2="34" y2="24" stroke="#B8BDC7" stroke-width="2" stroke-linecap="round"/>
+          <line x1="14" y1="30" x2="24" y2="30" stroke="#B8BDC7" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="38" cy="34" r="8" fill="#fff" stroke="#4269E7" stroke-width="2"/>
+          <path d="M38 30v4l2.5 2.5" stroke="#4269E7" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <p class="idle-title">Сгенерировать How to use?</p>
+        <p class="idle-hint">Документация по пропам готова. Добавь раздел с примерами использования компонента</p>
+      </div>
+      <div class="footer">
+        <button id="htuYesBtn" class="primary">Сгенерировать</button>
+        <button id="htuNoBtn">Вернуться к таблице</button>
       </div>
     </div>
 
-    <!-- HOW-TO-USE IMPORT: инструкция + вставка JSON -->
+    <!-- HOW-TO-USE IMPORT -->
     <div id="panel-htu-import" class="panel">
-      <h3>Component Props Inspector</h3>
-      <div class="steps">
-        <ol>
-          <li>JSON компонента скопирован в буфер обмена</li>
-          <li>Открой Claude Code в терминале</li>
-          <li>Запусти команду: <code>/generate-how-to-use</code></li>
-          <li>Дождись генерации — команда положит результат в буфер</li>
-          <li>Вернись сюда и вставь JSON ниже (Ctrl+V)</li>
-        </ol>
+      <div class="panel-content">
+        <div class="component-header">
+          <div class="component-name">Импорт How to use</div>
+        </div>
+        <p class="panel-descriptor">Сгенерируй раздел через Claude Code CLI и вставь результат ниже</p>
+        <div class="steps" style="margin-top:16px">
+          <ol>
+            <li>JSON компонента скопирован в буфер обмена</li>
+            <li>Открой Claude Code в терминале</li>
+            <li>Запусти команду: <code>/generate-how-to-use</code></li>
+            <li>Дождись генерации — команда положит результат в буфер</li>
+            <li>Вернись сюда и вставь JSON ниже (Ctrl+V)</li>
+          </ol>
+        </div>
+        <textarea id="htuPasteArea" rows="6" placeholder="Вставь JSON из Claude Code (Ctrl+V)..."></textarea>
       </div>
-      <textarea id="htuPasteArea" rows="6" placeholder="Вставь JSON из Claude Code (Ctrl+V)..."></textarea>
-      <div class="btn-row" style="display:flex; gap:8px; margin-top:8px;">
-        <button id="htuImportBtn" class="primary" style="flex:1;">Сгенерировать how to use</button>
-        <button id="htuCancelBtn" style="flex:1;">Отмена</button>
+      <div class="footer">
+        <button id="htuImportBtn" class="primary">Сгенерировать How to use</button>
+        <button id="htuCancelBtn">Отмена</button>
       </div>
     </div>
+
 
     <!-- LOADING -->
     <div id="panel-loading" class="panel">
-      <img src="https://c.tenor.com/aW1paWTKpZMAAAAd/tenor.gif" />
-      <div id="loadingProgress">Подготовка...</div>
+      <div class="panel-content loading-content">
+        <img src="https://c.tenor.com/aW1paWTKpZMAAAAd/tenor.gif" />
+        <div id="loadingProgress" class="loading-progress">Подготовка...</div>
+      </div>
+      <div class="footer">
+        <button disabled>Проверить компонент</button>
+        <div class="gen-wrap">
+          <button class="gen-btn" disabled>
+            <span class="spinner"></span>
+            Генерация...
+          </button>
+        </div>
+        <button disabled>Скопировать JSON</button>
+        <div class="spacer"></div>
+        <button disabled>Get key</button>
+      </div>
     </div>
 
   </body>
