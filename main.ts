@@ -1546,10 +1546,15 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
 
     await applyDarkTokenMode(darkModeFrame);
 
-    // Status nav — слева от Doc
-    const statusNavFrame = await createStatusNav(componentName);
-    if (statusNavFrame) {
-      pixso.currentPage.appendChild(statusNavFrame, false);
+    // Status nav — слева от Doc (пропускается если ключ не задан)
+    let statusNavFrame: any = null;
+    try {
+      statusNavFrame = await createStatusNav(componentName);
+      if (statusNavFrame) {
+        pixso.currentPage.appendChild(statusNavFrame, false);
+      }
+    } catch (e) {
+      console.warn("statusNav skipped:", e);
     }
 
     // Позиционирование: 500px ниже компонента, слева направо с отступом 150px
