@@ -1301,13 +1301,6 @@ async function generateDocumentation(silent = false) {
     bodyFrame.paddingTop = 40;
     bodyFrame.paddingBottom = 40;
 
-    if ("layoutAlign" in bodyFrame) {
-      bodyFrame.layoutAlign = "STRETCH";
-    }
-    if ("layoutPositioning" in bodyFrame) {
-      bodyFrame.layoutPositioning = "AUTO";
-    }
-
     const docFrame = pixso.createFrame();
     docFrame.name = "doc frame";
     docFrame.layoutMode = "VERTICAL";
@@ -1343,6 +1336,8 @@ async function generateDocumentation(silent = false) {
 
     bodyFrame.appendChild(docFrame, false);
     pageFrame.appendChild(bodyFrame, false);
+    if ("layoutAlign" in bodyFrame) bodyFrame.layoutAlign = "STRETCH";
+    if ("layoutPositioning" in bodyFrame) bodyFrame.layoutPositioning = "AUTO";
 
     let createdCount = 0;
 
@@ -1490,9 +1485,6 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
     howToUseBody.paddingRight = 40;
     howToUseBody.paddingTop = 40;
     howToUseBody.paddingBottom = 40;
-    if ("layoutAlign" in howToUseBody) howToUseBody.layoutAlign = "STRETCH";
-    if ("layoutPositioning" in howToUseBody) howToUseBody.layoutPositioning = "AUTO";
-
     const howToUseNav = await createDocNavigation(["..."]);  // заменяется при Import How to use
     if (howToUseNav) {
       howToUseBody.appendChild(howToUseNav, false);
@@ -1503,6 +1495,8 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
     howToUseBody.appendChild(howToUseBlock, false);
 
     howToUseFrame.appendChild(howToUseBody, false);
+    if ("layoutAlign" in howToUseBody) howToUseBody.layoutAlign = "STRETCH";
+    if ("layoutPositioning" in howToUseBody) howToUseBody.layoutPositioning = "AUTO";
     pixso.currentPage.appendChild(howToUseFrame, false);
 
     // 3. Dark mode
@@ -1543,12 +1537,11 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
     darkModeBody.paddingRight = 40;
     darkModeBody.paddingTop = 40;
     darkModeBody.paddingBottom = 40;
-    if ("layoutAlign" in darkModeBody) darkModeBody.layoutAlign = "STRETCH";
-    if ("layoutPositioning" in darkModeBody) darkModeBody.layoutPositioning = "AUTO";
-
     await fillDarkModeBody(darkModeBody);
 
     darkModeFrame.appendChild(darkModeBody, false);
+    if ("layoutAlign" in darkModeBody) darkModeBody.layoutAlign = "STRETCH";
+    if ("layoutPositioning" in darkModeBody) darkModeBody.layoutPositioning = "AUTO";
     pixso.currentPage.appendChild(darkModeFrame, false);
 
     await applyDarkTokenMode(darkModeFrame);
