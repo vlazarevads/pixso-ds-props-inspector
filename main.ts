@@ -2,6 +2,10 @@ import { propsDictionary } from "./data/propsDictionary";
 import { techComponentsExclusions } from "./data/techComponentsExclusions";
 import { propSynonyms } from "./data/propSynonyms";
 
+const COMPONENT_KEY_CONTENT_BLOCK = "1b89b827e1c21ed50d3ff95fbef5c616836d9026";
+const COMPONENT_KEY_DOC_HEADER     = "4a262b5804508871c8115a589a1a05cd6beeb10d";
+const COMPONENT_KEY_DOC_NAVIGATION = "a4b347581afa09e730175cdeb109d065aa8cd607";
+
 pixso.showUI(__html__, { width: 720, height: 560 });
 
 type NormalizedProp = {
@@ -883,7 +887,7 @@ async function fillPurposeBlock(block: any, sourceNode: any) {
 }
 
 async function createDocHeader(): Promise<any | null> {
-  const template = await pixso.importComponentByKeyAsync("4a262b5804508871c8115a589a1a05cd6beeb10d");
+  const template = await pixso.importComponentByKeyAsync(COMPONENT_KEY_DOC_HEADER);
 
   if (!template || typeof template.createInstance !== "function") {
     return null;
@@ -917,7 +921,7 @@ async function createDocHeader(): Promise<any | null> {
 }
 
 async function createDocNavigation(items: string[]): Promise<any | null> {
-  const template = await pixso.importComponentByKeyAsync("a4b347581afa09e730175cdeb109d065aa8cd607");
+  const template = await pixso.importComponentByKeyAsync(COMPONENT_KEY_DOC_NAVIGATION);
 
   if (!template || typeof template.clone !== "function") {
     return null;
@@ -1104,8 +1108,7 @@ async function fillDarkModeBody(bodyFrame: any): Promise<void> {
   if (placeholder && typeof placeholder.remove === "function") placeholder.remove();
 
   // Загружаем шаблон блока
-  const CONTENT_BLOCK_KEY = "1b89b827e1c21ed50d3ff95fbef5c616836d9026";
-  const template = await pixso.importComponentByKeyAsync(CONTENT_BLOCK_KEY);
+  const template = await pixso.importComponentByKeyAsync(COMPONENT_KEY_CONTENT_BLOCK);
   if (!template || typeof template.createInstance !== "function") return;
 
   const blockInstance = template.createInstance();
@@ -1232,13 +1235,7 @@ async function generateDocumentation(silent = false) {
   try {
     if (!lastInspectResult) return;
 
-    const KEYS = {
-      contentBlock: "1b89b827e1c21ed50d3ff95fbef5c616836d9026",
-      header: "4a262b5804508871c8115a589a1a05cd6beeb10d",
-      navigation: "a4b347581afa09e730175cdeb109d065aa8cd607",
-    };
-
-    const templateComponent = await pixso.importComponentByKeyAsync(KEYS.contentBlock);
+    const templateComponent = await pixso.importComponentByKeyAsync(COMPONENT_KEY_CONTENT_BLOCK);
     if (!templateComponent) return;
     const template = templateComponent;
 
@@ -1394,11 +1391,7 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
 
     const componentName = lastInspectResult.component || "Component";
 
-    const KEYS = {
-      contentBlock: "1b89b827e1c21ed50d3ff95fbef5c616836d9026",
-    };
-
-    const templateComponent = await pixso.importComponentByKeyAsync(KEYS.contentBlock);
+    const templateComponent = await pixso.importComponentByKeyAsync(COMPONENT_KEY_CONTENT_BLOCK);
     if (!templateComponent) return;
 
     // 1. Docs по пропам (без generation-finished — его шлёт generateFullDocumentation)
@@ -1691,8 +1684,7 @@ async function importHowToUse(data: HowToUseData) {
       }
     }
 
-    const CONTENT_BLOCK_KEY = "1b89b827e1c21ed50d3ff95fbef5c616836d9026";
-    const template = await pixso.importComponentByKeyAsync(CONTENT_BLOCK_KEY);
+    const template = await pixso.importComponentByKeyAsync(COMPONENT_KEY_CONTENT_BLOCK);
 
     if (!template || typeof template.createInstance !== "function") return;
 
