@@ -389,6 +389,9 @@
         color: #6D7585;
         line-height: 1.5;
       }
+      #techCompList {
+        margin-top: 16px;
+      }
 
       /* ── Idle empty state ── */
       .idle-empty {
@@ -486,7 +489,7 @@
         <div class="validation-stats">
           <span class="stat">Выбрано: <span id="techCompCount" class="stat-num wrong">0</span></span>
         </div>
-        <div id="techCompList" style="margin-top:16px"></div>
+        <div id="techCompList"></div>
       </div>
       <div class="footer">
         <button id="techProceedBtn" class="primary">Продолжить</button>
@@ -567,7 +570,7 @@
         <div class="gen-wrap">
           <button class="gen-btn" disabled>
             <span class="spinner"></span>
-            Генерация...
+            Сгенерировать документацию
           </button>
         </div>
         <button disabled>Скопировать JSON</button>

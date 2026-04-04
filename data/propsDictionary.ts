@@ -363,6 +363,15 @@ export const propsDictionary = {
     category: "component",
   },
 
+  clearable: {
+    designName: "clearable",
+    codeName: "clearable",
+    type: "boolean",
+    description:
+      "Показывает кнопку очистки значения внутри инпута. При нажатии сбрасывает введённый текст",
+    category: "component",
+  },
+
   scrollbar: {
     designName: "scrollbar",
     codeName: "scrollbar",

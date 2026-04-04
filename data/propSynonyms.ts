@@ -250,6 +250,19 @@ export const propSynonyms: Record<string, string[]> = {
     "emptyState", "isPlaceholder", "showPlaceholder",
   ],
 
+  clearable: [
+    "isClearable", "clear", "clearButton", "clearIcon",
+    "hasClear", "showClear", "resetable", "erasable",
+    "clearValue", "clearInput", "clearAction", "withClear",
+  ],
+
+  scrollbar: [
+    "scroll", "hasScrollbar", "showScrollbar", "isScrollable",
+    "scrollable", "overflow", "overflowY", "overflowX",
+    "scrollVisible", "scrollIndicator", "scrollTrack",
+    "hasScroll", "withScrollbar", "scrollEnabled",
+  ],
+
   truncateText: [
     "ellipsis", "overflow", "clip", "nowrap", "noWrap",
     "textOverflow", "truncate", "clamp",
