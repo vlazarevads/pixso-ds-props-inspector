@@ -363,6 +363,15 @@ export const propsDictionary = {
     category: "component",
   },
 
+  scrollbar: {
+    designName: "scrollbar",
+    codeName: "scrollbar",
+    type: "boolean",
+    description:
+      "Показывает или скрывает полосу прокрутки внутри компонента. Чисто визуальный проп дизайна",
+    category: "dev",
+  },
+
   truncateText: {
     designName: "truncateText",
     codeName: "truncateText",

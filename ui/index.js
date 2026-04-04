@@ -109,6 +109,12 @@ genHtuItem.onclick = () => {
 // ─── Tech components ──────────────────────────────────────────────────────────
 let pendingTechIds = [];
 
+function updateTechCount() {
+  const checked = techCompList.querySelectorAll('input[type="checkbox"]:checked').length;
+  const countEl = document.getElementById('techCompCount');
+  if (countEl) countEl.textContent = checked;
+}
+
 function buildTechList(items) {
   if (!items.length) return '<div class="empty">Вложенные компоненты не найдены</div>';
   return items.map(item => `
@@ -207,6 +213,8 @@ window.onmessage = (event) => {
   if (msg.type === 'tech-components-result') {
     if (msg.items && msg.items.length > 0) {
       techCompList.innerHTML = buildTechList(msg.items);
+      updateTechCount();
+      techCompList.addEventListener('change', updateTechCount);
       showPanel('tech-components');
     } else {
       // Вложенных компонентов нет — сразу проверяем фреймы
@@ -301,18 +309,16 @@ function buildTable(props) {
     return `
       <tr class="${cls}">
         <td>${esc(prop.pixsoName ?? '')}</td>
-        <td>${esc(prop.designName ?? '')}</td>
-        <td>${esc(prop.codeName ?? '')}</td>
+        <td>${esc(prop.status === 'UNKNOWN' ? '' : (prop.designName ?? ''))}</td>
         <td>${esc(fmtValues(prop.values))}</td>
         <td>${esc(prop.status ?? '')}</td>
-        <td>${esc(prop.suggestedName ?? '')}</td>
       </tr>`;
   }).join('');
 
   return `
     <table>
       <thead>
-        <tr><th>Pixso</th><th>Design</th><th>Code</th><th>Values</th><th>Status</th><th>Suggestion</th></tr>
+        <tr><th>Pixso</th><th>Стандарт</th><th>Values</th><th>Status</th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>`;

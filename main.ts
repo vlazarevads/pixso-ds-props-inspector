@@ -1,5 +1,6 @@
 import { propsDictionary } from "./data/propsDictionary";
 import { techComponentsExclusions } from "./data/techComponentsExclusions";
+import { propSynonyms } from "./data/propSynonyms";
 
 pixso.showUI(__html__, { width: 720, height: 560 });
 
@@ -114,9 +115,14 @@ function getDictionaryVariants() {
   });
 }
 
+function stripSeparators(s: string): string {
+  return s.toLowerCase().replace(/[\s_-]+/g, "");
+}
+
 function findDictionaryEntry(pixsoName: string, normalizedName: string, propData: any) {
   const lowerPixso = pixsoName.toLowerCase();
   const lowerNormalized = normalizedName.toLowerCase();
+  const strippedPixso = stripSeparators(pixsoName);
   const allEntries = getDictionaryVariants();
   const dictionaryKeys = Object.keys(propsDictionary);
 
@@ -127,7 +133,11 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string, propData
       String(item.designName).toLowerCase() === lowerPixso ||
       String(item.designName).toLowerCase() === lowerNormalized ||
       String(item.codeName).toLowerCase() === lowerPixso ||
-      String(item.codeName).toLowerCase() === lowerNormalized
+      String(item.codeName).toLowerCase() === lowerNormalized ||
+      // пробелы/дефисы/подчёркивания: "element before" → "elementbefore"
+      stripSeparators(String(dictKey)) === strippedPixso ||
+      stripSeparators(String(item.designName)) === strippedPixso ||
+      stripSeparators(String(item.codeName)) === strippedPixso
     );
   });
 
@@ -137,6 +147,19 @@ function findDictionaryEntry(pixsoName: string, normalizedName: string, propData
     ) || matchedCandidates[0];
 
   if (!matched) {
+    // Synonym lookup: ищем по таблице синонимов → REVIEW
+    for (const { dictKey, item } of allEntries) {
+      const syns = propSynonyms[dictKey];
+      if (!syns) continue;
+      const hit = syns.some(s => {
+        const sl = s.toLowerCase();
+        return sl === lowerPixso || sl === lowerNormalized || stripSeparators(s) === strippedPixso;
+      });
+      if (hit && matchesDictionaryByPixsoType(item, propData)) {
+        const dictionaryIndex = dictionaryKeys.indexOf(dictKey);
+        return { dict: item, status: "REVIEW", suggestedName: item.designName, dictionaryIndex };
+      }
+    }
     return null;
   }
 
