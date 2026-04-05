@@ -35,6 +35,7 @@
 
 ### How to use
 
+* Экран контекста перед генерацией — необязательное поле для описания кейсов, которые нужно покрыть
 * Генерация раздела How to use через Claude Code CLI (`/generate-how-to-use`)
 * Импорт результата в плагин через вставку JSON
 * Автоматическое построение навигации из заголовков секций
@@ -62,6 +63,7 @@
 * **Tech-components** — список вложенных компонентов с чекбоксами для выбора технических
 * **Confirm** — предупреждение о перезаписи существующих фреймов
 * **How to use prompt** — плейсхолдер с предложением сгенерировать раздел How to use
+* **How to use context** — поле для необязательного контекста (кейсы, которые нужно покрыть)
 * **How to use import** — инструкция по работе с Claude Code CLI и поле для вставки JSON
 * **Loading** — GIF на всю высоту, оверлей с прогрессом, задизейбленный футер
 
@@ -111,16 +113,34 @@
 pixso-ds-props-inspector
 │
 ├ data
-│  └ propsDictionary.ts
+│  ├ propsDictionary.ts
+│  ├ propSynonyms.ts
+│  └ techComponentsExclusions.ts
 │
 ├ ui
 │  ├ index.js
 │  └ ui.html
 │
+├ .claude
+│  └ commands
+│     └ generate-how-to-use.md
+│
 ├ main.ts
 ├ manifest.json
 ├ package.json
 └ tsconfig.json
+```
+
+---
+
+## Ключи компонентов (main.ts)
+
+```ts
+const COMPONENT_KEY_CONTENT_BLOCK = "1b89b827e1c21ed50d3ff95fbef5c616836d9026";
+const COMPONENT_KEY_DOC_HEADER     = "4a262b5804508871c8115a589a1a05cd6beeb10d";
+const COMPONENT_KEY_DOC_NAVIGATION = "a4b347581afa09e730175cdeb109d065aa8cd607";
+const COMPONENT_KEY_STATUS_NAV     = "REPLACE_ME"; // вставь ключ вручную
+const COMPONENT_KEY_DOC_LAYOUT     = "9897d02febefec90a6d8df466a033ebb40ac2d51";
 ```
 
 ---
@@ -163,6 +183,38 @@ npm run build
 ---
 
 ## Версии
+
+### v0.8.3
+
+Добавлено и улучшено:
+
+* экран контекста перед генерацией How to use — необязательное текстовое поле для описания кейсов; JSON копируется с полем `userContext`, который Claude Code использует как обязательное требование к содержанию
+* кнопка «Назад» на экране импорта How to use — возврат на экран контекста
+* скилл `/generate-how-to-use` учитывает `userContext`: если поле заполнено, соответствующие кейсы гарантированно покрываются в секциях или ideas
+* фикс растяжки `doc/block` и `leftSection`: теперь корректно применяются `primaryAxisSizingMode = "FIXED"` и `counterAxisSizingMode = "AUTO"` для сохранения hug по высоте и Fill по ширине
+* `fillDarkModeBody` вызывается после `currentPage.appendChild` — исправлена корневая причина неработающего `layoutAlign = "STRETCH"` в dark mode
+
+---
+
+### v0.8.2
+
+Добавлено и улучшено:
+
+* проп `clearable` (boolean, category: component) + синонимы
+* кнопка в loading footer: «Сгенерировать документацию»
+* margin-top 16px у `#techCompList`
+
+---
+
+### v0.8.1
+
+Добавлено и улучшено:
+
+* doc statusNav слева от Doc-фрейма (ключ `COMPONENT_KEY_STATUS_NAV`); пропускается без ошибки если ключ не задан
+* `createDocLayoutFrame` — базовый фрейм Doc/HowToUse/DarkMode создаётся через импорт компонента `doc layout` для сохранения цветовых токенов фона
+* фикс `layoutAlign = "STRETCH"` — применяется после `appendChild` для всех bodyFrame
+
+---
 
 ### v0.8
 
