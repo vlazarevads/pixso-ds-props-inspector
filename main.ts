@@ -1644,6 +1644,8 @@ type HowToUseData = {
   component: string;
   sections: HowToUseSection[];
   ideas?: HowToUseSection[];
+  componentDescription?: string;
+  techDescriptions?: Record<string, string>;
 };
 
 async function fillHowToUseBlock(block: any, section: HowToUseSection) {
@@ -1825,6 +1827,31 @@ async function importHowToUse(data: HowToUseData) {
         bodyFrame.insertChild(0, newNav);
       } else {
         bodyFrame.appendChild(newNav, false);
+      }
+    }
+
+    // Fill descriptionText in section / purpose of Doc frames
+    async function fillPurposeDescription(frameName: string, description: string) {
+      const frame = pixso.currentPage.children.find(
+        (n: any) => n.name === frameName && n.type === "FRAME"
+      ) as any;
+      if (!frame) return;
+      const purposeBlock = findNodeByName(frame, "section / purpose");
+      if (!purposeBlock) return;
+      const descText = findNodeByName(purposeBlock, "descriptionText");
+      if (descText && descText.type === "TEXT") {
+        await loadTextNodeFontSafe(descText);
+        descText.characters = description;
+      }
+    }
+
+    if (data.componentDescription) {
+      await fillPurposeDescription(`Doc / ${componentName}`, data.componentDescription);
+    }
+
+    if (data.techDescriptions && typeof data.techDescriptions === "object") {
+      for (const [techName, techDesc] of Object.entries(data.techDescriptions)) {
+        await fillPurposeDescription(`Doc / ${techName}`, techDesc);
       }
     }
 

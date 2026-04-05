@@ -114,6 +114,7 @@ genHtuItem.onclick = () => {
 
 // ─── Tech components ──────────────────────────────────────────────────────────
 let pendingTechIds = [];
+let pendingTechNames = [];
 
 function updateTechCount() {
   const checked = techCompList.querySelectorAll('input[type="checkbox"]:checked').length;
@@ -125,7 +126,7 @@ function buildTechList(items) {
   if (!items.length) return '<div class="empty">Вложенные компоненты не найдены</div>';
   return items.map(item => `
     <label class="tech-item">
-      <input type="checkbox" value="${esc(item.id)}" ${item.isTechnical ? 'checked' : ''}>
+      <input type="checkbox" value="${esc(item.id)}" data-name="${esc(item.name)}" ${item.isTechnical ? 'checked' : ''}>
       <span class="tech-name">${esc(item.name)}</span>
       ${item.isTechnical ? '<span class="tech-badge">технический</span>' : ''}
     </label>
@@ -135,6 +136,7 @@ function buildTechList(items) {
 techProceedBtn.onclick = () => {
   const checked = Array.from(techCompList.querySelectorAll('input[type="checkbox"]:checked'));
   pendingTechIds = checked.map(cb => cb.value);
+  pendingTechNames = checked.map(cb => cb.dataset.name).filter(Boolean);
   parent.postMessage({ pluginMessage: { type: 'check-frames', selectedTechIds: pendingTechIds } }, '*');
 };
 
@@ -142,6 +144,7 @@ techCancelBtn.onclick = () => showPanel('table');
 
 techSkipBtn.onclick = () => {
   pendingTechIds = [];
+  pendingTechNames = [];
   parent.postMessage({ pluginMessage: { type: 'check-frames', selectedTechIds: [] } }, '*');
 };
 
@@ -191,14 +194,16 @@ htuContextNextBtn.onclick = async () => {
     .map(ta => ta.value.trim())
     .filter(Boolean);
 
+  const techExtra = pendingTechNames.length > 0 ? { techComponents: pendingTechNames } : {};
+
   const hasContext = comment || cases.length > 0;
   if (!hasContext) {
-    await copyText(JSON.stringify(lastResult, null, 2));
+    await copyText(JSON.stringify({ ...lastResult, ...techExtra }, null, 2));
   } else {
     const parts = [];
     if (comment) parts.push(comment);
     cases.forEach((c, i) => parts.push(`Кейс ${i + 1}: ${c}`));
-    const payload = { ...lastResult, userContext: parts.join('\n\n') };
+    const payload = { ...lastResult, ...techExtra, userContext: parts.join('\n\n') };
     await copyText(JSON.stringify(payload, null, 2));
   }
   htuPasteArea.value = '';
