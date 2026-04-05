@@ -1348,11 +1348,19 @@ async function generateDocumentation(silent = false) {
     }
 
     const header = await createDocHeader();
-    const navigation = await createDocNavigation(["purpose", ...lastInspectResult.props.map((p: NormalizedProp) => p.designName || p.name)]);
-
     if (header) {
+      const pageTitle =
+        findNodeByName(header, "pageTitle") ||
+        findNodeByName(header, "title") ||
+        findNodeByName(header, "text");
+      if (pageTitle && pageTitle.type === "TEXT") {
+        await loadTextNodeFontSafe(pageTitle);
+        pageTitle.characters = lastInspectResult.component || "Component";
+      }
       pageFrame.appendChild(header, false);
     }
+
+    const navigation = await createDocNavigation(["purpose", ...lastInspectResult.props.map((p: NormalizedProp) => p.designName || p.name)]);
 
     if (navigation) {
       bodyFrame.appendChild(navigation, false);
