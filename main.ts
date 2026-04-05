@@ -837,6 +837,12 @@ async function fillPurposeBlock(block: any, sourceNode: any) {
 
   const leftSection = findNodeByName(block, "leftSection");
   if (leftSection) {
+    // Растягиваем doc/block (родитель leftSection) на всю ширину
+    const docBlock = leftSection.parent;
+    if (docBlock) {
+      if ("counterAxisSizingMode" in docBlock) docBlock.counterAxisSizingMode = "FIXED";
+      if ("layoutAlign" in docBlock) docBlock.layoutAlign = "STRETCH";
+    }
     if ("layoutGrow" in leftSection) {
       leftSection.layoutGrow = 1;
     }
@@ -1172,9 +1178,14 @@ async function fillDarkModeBody(bodyFrame: any): Promise<void> {
   const rightSection = findNodeByName(block, "rightSection");
   if (rightSection && typeof rightSection.remove === "function") rightSection.remove();
 
-  // leftSection растягиваем на всю ширину
+  // leftSection растягиваем на всю ширину; doc/block (родитель) тоже
   const leftSection = findNodeByName(block, "leftSection");
   if (leftSection) {
+    const docBlock = leftSection.parent;
+    if (docBlock) {
+      if ("counterAxisSizingMode" in docBlock) docBlock.counterAxisSizingMode = "FIXED";
+      if ("layoutAlign" in docBlock) docBlock.layoutAlign = "STRETCH";
+    }
     if ("layoutAlign" in leftSection) leftSection.layoutAlign = "STRETCH";
     if ("layoutGrow" in leftSection) leftSection.layoutGrow = 1;
 
