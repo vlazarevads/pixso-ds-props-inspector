@@ -182,7 +182,7 @@
         display: flex;
         align-items: baseline;
         gap: 8px;
-        margin-bottom: 4px;
+        margin-bottom: 0;
       }
       .component-name {
         font-size: 15px;
@@ -325,7 +325,32 @@
       }
       textarea.text-area {
         font-family: "Kaspersky Sans Text", Arial, sans-serif;
-        resize: none;
+      }
+
+      /* ── Case cards ── */
+      .cases-section {
+        margin-top: 24px;
+      }
+      .cases-descriptor {
+        font-size: 12px;
+        color: #6D7585;
+        margin: 8px 0 12px;
+        line-height: 1.5;
+      }
+      .case-card {
+        border: 1px solid #DFE4EB;
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 16px;
+        background: #F5F6F7;
+      }
+      .case-card-title {
+        font-size: 11px;
+        font-weight: 600;
+        color: #6D7585;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        margin: 0 0 10px;
       }
 
       /* ── Tech components list ── */
@@ -544,8 +569,20 @@
         <div class="component-header">
           <div class="component-name">Контекст для генерации</div>
         </div>
-        <p class="panel-descriptor">Необязательно — опиши кейсы, которые точно нужно включить в How to use. Можно оставить пустым.</p>
-        <textarea id="htuContextArea" class="text-area" rows="6" placeholder="Например: показать disabled с тултипом, описать поведение внутри формы, добавить кейс с длинным текстом..." style="margin-top:16px"></textarea>
+        <p class="panel-descriptor">Необязательно — всё поля можно оставить пустыми.</p>
+        <textarea id="htuContextArea" class="text-area" rows="3" placeholder="Общий комментарий к компоненту..." style="margin-top:16px;margin-bottom:0"></textarea>
+
+        <div class="cases-section">
+          <div class="component-name">Кейсы</div>
+          <p class="cases-descriptor">Конкретные сценарии, которые обязательно нужно проработать при генерации</p>
+          <div id="htuCasesList"></div>
+          <button id="htuAddCaseBtn" style="margin-top:4px">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <path d="M8 3v10M3 8h10" stroke="#131416" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Добавить кейс
+          </button>
+        </div>
       </div>
       <div class="footer">
         <button id="htuContextNextBtn" class="primary">Далее</button>

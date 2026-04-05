@@ -311,8 +311,16 @@ export const propsDictionary = {
   },
 
   actions: {
-    designName: "action(s)",
+    designName: "actions",
     codeName: "actions",
+    type: "boolean",
+    description: "Показывает или скрывает блок дополнительных действий (кнопки, меню и т.д.)",
+    category: "visibility",
+  },
+
+  action: {
+    designName: "action",
+    codeName: "action",
     type: "boolean",
     description: "Показывает или скрывает блок дополнительных действий (кнопки, меню и т.д.)",
     category: "visibility",

@@ -31,9 +31,11 @@ const techSkipBtn      = document.getElementById('techSkipBtn');
 const techCompList     = document.getElementById('techCompList');
 const htuYesBtn          = document.getElementById('htuYesBtn');
 const htuNoBtn           = document.getElementById('htuNoBtn');
-const htuContextArea     = document.getElementById('htuContextArea');
-const htuContextNextBtn  = document.getElementById('htuContextNextBtn');
-const htuContextCancelBtn= document.getElementById('htuContextCancelBtn');
+const htuContextArea      = document.getElementById('htuContextArea');
+const htuContextNextBtn   = document.getElementById('htuContextNextBtn');
+const htuContextCancelBtn = document.getElementById('htuContextCancelBtn');
+const htuCasesList        = document.getElementById('htuCasesList');
+const htuAddCaseBtn       = document.getElementById('htuAddCaseBtn');
 const htuPasteArea       = document.getElementById('htuPasteArea');
 const htuImportBtn       = document.getElementById('htuImportBtn');
 const htuBackBtn         = document.getElementById('htuBackBtn');
@@ -106,6 +108,7 @@ genPropsItem.onclick = () => {
 genHtuItem.onclick = () => {
   toggleGenDropdown(false);
   htuContextArea.value = '';
+  htuCasesList.innerHTML = '';
   showPanel('htu-context');
 };
 
@@ -158,19 +161,46 @@ confirmNoBtn.onclick = () => showPanel('table');
 // ─── How to use prompt ────────────────────────────────────────────────────────
 htuYesBtn.onclick = () => {
   htuContextArea.value = '';
+  htuCasesList.innerHTML = '';
   showPanel('htu-context');
 };
 
 htuNoBtn.onclick = () => showPanel('table');
 
 // ─── How to use context ───────────────────────────────────────────────────────
+let caseCount = 0;
+
+function addCaseCard() {
+  caseCount++;
+  const card = document.createElement('div');
+  card.className = 'case-card';
+  card.innerHTML = `
+    <p class="case-card-title">Кейс ${caseCount}</p>
+    <textarea class="text-area case-textarea" rows="2" placeholder="Опиши сценарий..."></textarea>
+  `;
+  htuCasesList.appendChild(card);
+  card.querySelector('textarea').focus();
+}
+
+htuAddCaseBtn.onclick = addCaseCard;
+
 htuContextNextBtn.onclick = async () => {
   if (!lastResult) return;
-  const ctx = htuContextArea.value.trim();
-  const payload = ctx
-    ? { ...lastResult, userContext: ctx }
-    : lastResult;
-  await copyText(JSON.stringify(payload, null, 2));
+  const comment = htuContextArea.value.trim();
+  const cases = Array.from(htuCasesList.querySelectorAll('.case-textarea'))
+    .map(ta => ta.value.trim())
+    .filter(Boolean);
+
+  const hasContext = comment || cases.length > 0;
+  if (!hasContext) {
+    await copyText(JSON.stringify(lastResult, null, 2));
+  } else {
+    const parts = [];
+    if (comment) parts.push(comment);
+    cases.forEach((c, i) => parts.push(`Кейс ${i + 1}: ${c}`));
+    const payload = { ...lastResult, userContext: parts.join('\n\n') };
+    await copyText(JSON.stringify(payload, null, 2));
+  }
   htuPasteArea.value = '';
   showPanel('htu-import');
 };
