@@ -837,15 +837,17 @@ async function fillPurposeBlock(block: any, sourceNode: any) {
 
   const leftSection = findNodeByName(block, "leftSection");
   if (leftSection) {
-    // Растягиваем doc/block (родитель leftSection) на всю ширину
+    // Растягиваем doc/block (родитель leftSection) на всю ширину, высота — hug
     const docBlock = leftSection.parent;
     if (docBlock) {
-      if ("counterAxisSizingMode" in docBlock) docBlock.counterAxisSizingMode = "FIXED";
+      if ("primaryAxisSizingMode" in docBlock) docBlock.primaryAxisSizingMode = "FIXED";
+      if ("counterAxisSizingMode" in docBlock) docBlock.counterAxisSizingMode = "AUTO";
       if ("layoutAlign" in docBlock) docBlock.layoutAlign = "STRETCH";
     }
     if ("layoutGrow" in leftSection) {
       leftSection.layoutGrow = 1;
     }
+    if ("primaryAxisSizingMode" in leftSection) leftSection.primaryAxisSizingMode = "AUTO";
     if ("layoutAlign" in leftSection) {
       leftSection.layoutAlign = "STRETCH";
     }
@@ -1183,9 +1185,11 @@ async function fillDarkModeBody(bodyFrame: any): Promise<void> {
   if (leftSection) {
     const docBlock = leftSection.parent;
     if (docBlock) {
-      if ("counterAxisSizingMode" in docBlock) docBlock.counterAxisSizingMode = "FIXED";
+      if ("primaryAxisSizingMode" in docBlock) docBlock.primaryAxisSizingMode = "FIXED";
+      if ("counterAxisSizingMode" in docBlock) docBlock.counterAxisSizingMode = "AUTO";
       if ("layoutAlign" in docBlock) docBlock.layoutAlign = "STRETCH";
     }
+    if ("primaryAxisSizingMode" in leftSection) leftSection.primaryAxisSizingMode = "AUTO";
     if ("layoutAlign" in leftSection) leftSection.layoutAlign = "STRETCH";
     if ("layoutGrow" in leftSection) leftSection.layoutGrow = 1;
 
