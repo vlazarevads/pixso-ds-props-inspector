@@ -6,6 +6,7 @@ const COMPONENT_KEY_CONTENT_BLOCK = "1b89b827e1c21ed50d3ff95fbef5c616836d9026";
 const COMPONENT_KEY_DOC_HEADER     = "4a262b5804508871c8115a589a1a05cd6beeb10d";
 const COMPONENT_KEY_DOC_NAVIGATION = "a4b347581afa09e730175cdeb109d065aa8cd607";
 const COMPONENT_KEY_STATUS_NAV     = "REPLACE_ME"; // ← вставь ключ вручную
+const COMPONENT_KEY_DOC_LAYOUT     = "9897d02febefec90a6d8df466a033ebb40ac2d51";
 
 pixso.showUI(__html__, { width: 720, height: 560 });
 
@@ -887,6 +888,27 @@ async function fillPurposeBlock(block: any, sourceNode: any) {
   }
 }
 
+async function createDocLayoutFrame(name: string): Promise<any> {
+  try {
+    const template = await pixso.importComponentByKeyAsync(COMPONENT_KEY_DOC_LAYOUT);
+    if (template && typeof template.createInstance === "function") {
+      const instance = template.createInstance();
+      const frame = typeof instance.detachInstance === "function"
+        ? instance.detachInstance()
+        : instance;
+      frame.name = name;
+      return frame;
+    }
+  } catch (e) {
+    console.warn("createDocLayoutFrame fallback to createFrame:", e);
+  }
+  // Fallback — обычный фрейм с белым фоном
+  const frame = pixso.createFrame();
+  frame.name = name;
+  frame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
+  return frame;
+}
+
 async function createStatusNav(componentName: string): Promise<any | null> {
   const template = await pixso.importComponentByKeyAsync(COMPONENT_KEY_STATUS_NAV);
   if (!template || typeof template.createInstance !== "function") return null;
@@ -1264,32 +1286,17 @@ async function generateDocumentation(silent = false) {
 
     removeFrameByName(`Doc / ${lastInspectResult.component || "Component"}`);
 
-    const pageFrame = pixso.createFrame();
-    pageFrame.name = `Doc / ${lastInspectResult.component || "Component"}`;
+    const pageFrame = await createDocLayoutFrame(`Doc / ${lastInspectResult.component || "Component"}`);
     pageFrame.layoutMode = "VERTICAL";
     pageFrame.itemSpacing = 0;
     pageFrame.cornerRadius = 24;
-    pageFrame.fills = [
-      {
-        type: "SOLID",
-        color: { r: 1, g: 1, b: 1 },
-      },
-    ];
     pageFrame.paddingLeft = 0;
     pageFrame.paddingRight = 0;
     pageFrame.paddingTop = 0;
     pageFrame.paddingBottom = 0;
-
-    if ("primaryAxisSizingMode" in pageFrame) {
-      pageFrame.primaryAxisSizingMode = "AUTO";
-    }
-    if ("counterAxisSizingMode" in pageFrame) {
-      pageFrame.counterAxisSizingMode = "FIXED";
-    }
-
-    if (typeof pageFrame.resize === "function") {
-      pageFrame.resize(1280, 100);
-    }
+    if ("primaryAxisSizingMode" in pageFrame) pageFrame.primaryAxisSizingMode = "AUTO";
+    if ("counterAxisSizingMode" in pageFrame) pageFrame.counterAxisSizingMode = "FIXED";
+    if (typeof pageFrame.resize === "function") pageFrame.resize(1280, 100);
 
     const bodyFrame = pixso.createFrame();
     bodyFrame.name = "bodyFrame";
@@ -1449,12 +1456,10 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
 
     // 3. How to use
     removeFrameByName(`How to use / ${componentName}`);
-    const howToUseFrame = pixso.createFrame();
-    howToUseFrame.name = `How to use / ${componentName}`;
+    const howToUseFrame = await createDocLayoutFrame(`How to use / ${componentName}`);
     howToUseFrame.layoutMode = "VERTICAL";
     howToUseFrame.itemSpacing = 0;
     howToUseFrame.cornerRadius = 24;
-    howToUseFrame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
     howToUseFrame.paddingLeft = 0;
     howToUseFrame.paddingRight = 0;
     howToUseFrame.paddingTop = 0;
@@ -1501,12 +1506,10 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
 
     // 3. Dark mode
     removeFrameByName(`Dark mode / ${componentName}`);
-    const darkModeFrame = pixso.createFrame();
-    darkModeFrame.name = `Dark mode / ${componentName}`;
+    const darkModeFrame = await createDocLayoutFrame(`Dark mode / ${componentName}`);
     darkModeFrame.layoutMode = "VERTICAL";
     darkModeFrame.itemSpacing = 0;
     darkModeFrame.cornerRadius = 24;
-    darkModeFrame.fills = [{ type: "SOLID", color: { r: 1, g: 1, b: 1 } }];
     darkModeFrame.paddingLeft = 0;
     darkModeFrame.paddingRight = 0;
     darkModeFrame.paddingTop = 0;
