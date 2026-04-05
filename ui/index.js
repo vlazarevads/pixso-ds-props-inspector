@@ -1,5 +1,5 @@
 // ─── State machine ───────────────────────────────────────────────────────────
-const PANELS = ['idle', 'table', 'tech-components', 'confirm', 'htu-prompt', 'htu-import', 'loading'];
+const PANELS = ['idle', 'table', 'tech-components', 'confirm', 'htu-prompt', 'htu-context', 'htu-import', 'loading'];
 
 function showPanel(name) {
   PANELS.forEach(p => {
@@ -29,11 +29,15 @@ const techProceedBtn   = document.getElementById('techProceedBtn');
 const techCancelBtn    = document.getElementById('techCancelBtn');
 const techSkipBtn      = document.getElementById('techSkipBtn');
 const techCompList     = document.getElementById('techCompList');
-const htuYesBtn        = document.getElementById('htuYesBtn');
-const htuNoBtn         = document.getElementById('htuNoBtn');
-const htuPasteArea     = document.getElementById('htuPasteArea');
-const htuImportBtn     = document.getElementById('htuImportBtn');
-const htuCancelBtn     = document.getElementById('htuCancelBtn');
+const htuYesBtn          = document.getElementById('htuYesBtn');
+const htuNoBtn           = document.getElementById('htuNoBtn');
+const htuContextArea     = document.getElementById('htuContextArea');
+const htuContextNextBtn  = document.getElementById('htuContextNextBtn');
+const htuContextCancelBtn= document.getElementById('htuContextCancelBtn');
+const htuPasteArea       = document.getElementById('htuPasteArea');
+const htuImportBtn       = document.getElementById('htuImportBtn');
+const htuBackBtn         = document.getElementById('htuBackBtn');
+const htuCancelBtn       = document.getElementById('htuCancelBtn');
 
 
 // ─── Clipboard helpers ────────────────────────────────────────────────────────
@@ -101,9 +105,8 @@ genPropsItem.onclick = () => {
 
 genHtuItem.onclick = () => {
   toggleGenDropdown(false);
-  if (lastResult) copyText(JSON.stringify(lastResult, null, 2));
-  htuPasteArea.value = '';
-  showPanel('htu-import');
+  htuContextArea.value = '';
+  showPanel('htu-context');
 };
 
 // ─── Tech components ──────────────────────────────────────────────────────────
@@ -153,15 +156,26 @@ confirmYesBtn.onclick = () => {
 confirmNoBtn.onclick = () => showPanel('table');
 
 // ─── How to use prompt ────────────────────────────────────────────────────────
-htuYesBtn.onclick = async () => {
-  if (lastResult) {
-    await copyText(JSON.stringify(lastResult, null, 2));
-  }
+htuYesBtn.onclick = () => {
+  htuContextArea.value = '';
+  showPanel('htu-context');
+};
+
+htuNoBtn.onclick = () => showPanel('table');
+
+// ─── How to use context ───────────────────────────────────────────────────────
+htuContextNextBtn.onclick = async () => {
+  if (!lastResult) return;
+  const ctx = htuContextArea.value.trim();
+  const payload = ctx
+    ? { ...lastResult, userContext: ctx }
+    : lastResult;
+  await copyText(JSON.stringify(payload, null, 2));
   htuPasteArea.value = '';
   showPanel('htu-import');
 };
 
-htuNoBtn.onclick = () => showPanel('table');
+htuContextCancelBtn.onclick = () => showPanel('table');
 
 // ─── How to use import ────────────────────────────────────────────────────────
 htuImportBtn.onclick = () => {
@@ -186,6 +200,7 @@ htuImportBtn.onclick = () => {
   parent.postMessage({ pluginMessage: { type: 'import-how-to-use', data } }, '*');
 };
 
+htuBackBtn.onclick = () => showPanel('htu-context');
 htuCancelBtn.onclick = () => showPanel('table');
 
 // ─── Get key ──────────────────────────────────────────────────────────────────

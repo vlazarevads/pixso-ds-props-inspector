@@ -323,6 +323,10 @@
         border-color: #6E98FD;
         box-shadow: 0 0 0 2px #6E98FD33;
       }
+      textarea.text-area {
+        font-family: "Kaspersky Sans Text", Arial, sans-serif;
+        resize: none;
+      }
 
       /* ── Tech components list ── */
       .tech-item {
@@ -534,6 +538,21 @@
       </div>
     </div>
 
+    <!-- HOW-TO-USE CONTEXT -->
+    <div id="panel-htu-context" class="panel">
+      <div class="panel-content">
+        <div class="component-header">
+          <div class="component-name">Контекст для генерации</div>
+        </div>
+        <p class="panel-descriptor">Необязательно — опиши кейсы, которые точно нужно включить в How to use. Можно оставить пустым.</p>
+        <textarea id="htuContextArea" class="text-area" rows="6" placeholder="Например: показать disabled с тултипом, описать поведение внутри формы, добавить кейс с длинным текстом..." style="margin-top:16px"></textarea>
+      </div>
+      <div class="footer">
+        <button id="htuContextNextBtn" class="primary">Далее</button>
+        <button id="htuContextCancelBtn">Отмена</button>
+      </div>
+    </div>
+
     <!-- HOW-TO-USE IMPORT -->
     <div id="panel-htu-import" class="panel">
       <div class="panel-content">
@@ -554,6 +573,7 @@
       </div>
       <div class="footer">
         <button id="htuImportBtn" class="primary">Сгенерировать How to use</button>
+        <button id="htuBackBtn">Назад</button>
         <button id="htuCancelBtn">Отмена</button>
       </div>
     </div>
