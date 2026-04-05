@@ -340,7 +340,11 @@ function inspectSelectedNode() {
     return;
   }
 
-  const node = selection[0] as any;
+  let node = selection[0] as any;
+  if (node.type === "INSTANCE" && node.mainComponent) {
+    const main = node.mainComponent;
+    node = main.parent?.type === "COMPONENT_SET" ? main.parent : main;
+  }
   lastInspectedNode = node;
   lastInspectResult = inspectNode(node);
 
