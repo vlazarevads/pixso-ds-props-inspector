@@ -1264,6 +1264,7 @@ async function fillDarkModeBody(bodyFrame: any): Promise<void> {
   if ("primaryAxisAlignItems" in matrixFrame) matrixFrame.primaryAxisAlignItems = "CENTER";
 
   bodyFrame.appendChild(block, false);
+  if ("layoutAlign" in block) block.layoutAlign = "STRETCH";
 }
 
 function removeFrameByName(name: string) {
@@ -1322,10 +1323,6 @@ async function generateDocumentation(silent = false) {
     if ("layoutPositioning" in docFrame) {
       docFrame.layoutPositioning = "AUTO";
     }
-    if ("layoutAlign" in docFrame) {
-      docFrame.layoutAlign = "STRETCH";
-    }
-
     if (typeof docFrame.resize === "function") {
       docFrame.resize(1200, 100);
     }
@@ -1342,6 +1339,8 @@ async function generateDocumentation(silent = false) {
     }
 
     bodyFrame.appendChild(docFrame, false);
+    if ("layoutAlign" in docFrame) docFrame.layoutAlign = "STRETCH";
+
     pageFrame.appendChild(bodyFrame, false);
     if ("layoutAlign" in bodyFrame) bodyFrame.layoutAlign = "STRETCH";
     if ("layoutPositioning" in bodyFrame) bodyFrame.layoutPositioning = "AUTO";
@@ -1360,6 +1359,7 @@ async function generateDocumentation(silent = false) {
     purposeBlock.visible = true;
 
     docFrame.appendChild(purposeBlock, false);
+    if ("layoutAlign" in purposeBlock) purposeBlock.layoutAlign = "STRETCH";
     await fillPurposeBlock(purposeBlock, lastInspectedNode);
 
     for (const prop of lastInspectResult.props) {
@@ -1377,6 +1377,7 @@ async function generateDocumentation(silent = false) {
       block.visible = true;
 
       docFrame.appendChild(block, false);
+      if ("layoutAlign" in block) block.layoutAlign = "STRETCH";
 
       await fillPropBlock(block, prop, lastInspectedNode);
 
