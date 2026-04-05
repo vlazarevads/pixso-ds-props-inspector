@@ -1264,6 +1264,7 @@ async function fillDarkModeBody(bodyFrame: any): Promise<void> {
   if ("primaryAxisAlignItems" in matrixFrame) matrixFrame.primaryAxisAlignItems = "CENTER";
 
   bodyFrame.appendChild(block, false);
+  if ("counterAxisSizingMode" in block) block.counterAxisSizingMode = "FIXED";
   if ("layoutAlign" in block) block.layoutAlign = "STRETCH";
 }
 
@@ -1359,6 +1360,7 @@ async function generateDocumentation(silent = false) {
     purposeBlock.visible = true;
 
     docFrame.appendChild(purposeBlock, false);
+    if ("counterAxisSizingMode" in purposeBlock) purposeBlock.counterAxisSizingMode = "FIXED";
     if ("layoutAlign" in purposeBlock) purposeBlock.layoutAlign = "STRETCH";
     await fillPurposeBlock(purposeBlock, lastInspectedNode);
 
@@ -1377,6 +1379,7 @@ async function generateDocumentation(silent = false) {
       block.visible = true;
 
       docFrame.appendChild(block, false);
+      if ("counterAxisSizingMode" in block) block.counterAxisSizingMode = "FIXED";
       if ("layoutAlign" in block) block.layoutAlign = "STRETCH";
 
       await fillPropBlock(block, prop, lastInspectedNode);
@@ -1541,12 +1544,14 @@ async function generateFullDocumentation(selectedTechIds: string[] = []) {
     darkModeBody.paddingRight = 40;
     darkModeBody.paddingTop = 40;
     darkModeBody.paddingBottom = 40;
-    await fillDarkModeBody(darkModeBody);
-
     darkModeFrame.appendChild(darkModeBody, false);
+    if ("counterAxisSizingMode" in darkModeBody) darkModeBody.counterAxisSizingMode = "FIXED";
     if ("layoutAlign" in darkModeBody) darkModeBody.layoutAlign = "STRETCH";
     if ("layoutPositioning" in darkModeBody) darkModeBody.layoutPositioning = "AUTO";
     pixso.currentPage.appendChild(darkModeFrame, false);
+
+    // fillDarkModeBody вызываем ПОСЛЕ того как вся цепочка подключена к currentPage
+    await fillDarkModeBody(darkModeBody);
 
     await applyDarkTokenMode(darkModeFrame);
 
